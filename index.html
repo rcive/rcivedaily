@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="bn" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rcive Daily (rcivedaily.com) - Cloud Finance & Solo Meal Manager</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- html2pdf for Professional PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#f0fdf4', 500: '#10b981', 600: '#059669', 700: '#047857', dark: '#090d16' }
+                    },
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-200">
+
+    <!-- LOGIN & REGISTER MODAL -->
+    <div id="authScreen" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6">
+            <div class="text-center space-y-2">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 text-2xl font-bold mb-1">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                </div>
+                <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white">Rcive Daily</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">rcivedaily.com - Cloud Sync & Solo Meal Manager</p>
+            </div>
+            
+            <form onsubmit="handleCloudLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">ইউজার আইডি / ইমেইল</label>
+                    <input type="text" id="cloudUser" required placeholder="যেমন: rifat_hosen" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">সিক্রেট পিন</label>
+                    <input type="password" id="cloudPass" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-2xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i> ক্লাউডে প্রবেশ করুন
+                </button>
+            </form>
+            <div class="text-center text-[11px] text-slate-400">
+                আপনার ডেটা ক্লাউডে সুরক্ষিত থাকবে। অ্যাডমিন প্যানেল থেকে সমস্ত ইউজারের রেকর্ড ট্র্যাক করা যাবে।
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div id="mainApp" class="flex-1 flex flex-col pb-20 md:pb-0">
+        <!-- Top Sticky Header -->
+        <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/85 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm no-print">
+            <div class="flex items-center space-x-2">
+                <button onclick="goBack()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <button onclick="switchTab('dashboard')" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition">
+                    <i class="fa-solid fa-house"></i>
+                </button>
+            </div>
+            
+            <div class="text-center">
+                <span class="text-xs font-bold tracking-widest text-emerald-600 dark:text-emerald-400 uppercase">rcivedaily.com</span>
+                <h1 class="text-sm font-extrabold text-slate-900 dark:text-white" id="userGreeting">Cloud Sync Active</h1>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <button onclick="generatePDFReport()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition" title="Download PDF Report">
+                    <i class="fa-solid fa-file-pdf"></i>
+                </button>
+                <button onclick="toggleDarkMode()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 transition">
+                    <i id="themeIcon" class="fa-solid fa-moon"></i>
+                </button>
+                <button onclick="logoutCloud()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition" title="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Printable Report PDF Container Area -->
+        <main id="pdfExportArea" class="flex-1 max-w-5xl w-full mx-auto px-4 py-6 space-y-6">
+
+            <!-- 1. DASHBOARD TAB -->
+            <section id="tab-dashboard" class="space-y-6 tab-content">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">মাসিক আর্থিক ড্যাশবোর্ড</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">রিয়েল-টাইম আয়, খরচ ও মিল রেট ট্র্যাকিং</p>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">মোট আয় (Income)</span>
+                        <h3 id="kpi-income" class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">৳ 0.00</h3>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">মোট খরচ (Expense)</span>
+                        <h3 id="kpi-expense" class="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">৳ 0.00</h3>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">মিলের বাজার</span>
+                        <h3 id="kpi-market" class="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">৳ 0.00</h3>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">হাতে জমা (Balance)</span>
+                        <h3 id="kpi-balance" class="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">৳ 0.00</h3>
+                    </div>
+                </div>
+
+                <!-- Solo Meal Highlight & Charts -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div class="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-6 rounded-3xl shadow-lg flex flex-col justify-between">
+                        <div>
+                            <span class="text-[10px] uppercase tracking-wider font-extrabold bg-white/20 px-3 py-1 rounded-full">একলা রান্নার মিল রেট</span>
+                            <h4 class="text-3xl font-black mt-4" id="dash-meal-rate">৳ 0.00</h4>
+                            <p class="text-xs text-emerald-100 mt-1">প্রতি বেলা রান্নার গড় খরচ</p>
+                        </div>
+                        <div class="mt-6 pt-4 border-t border-white/20 flex justify-between items-center text-xs font-medium">
+                            <span>মোট খাওয়া বেলা: <strong id="dash-total-meals" class="text-white text-sm">0</strong></span>
+                            <button onclick="switchTab('meal')" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl transition no-print">হিসাব দেখুন</button>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                        <h3 class="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">খাতভিত্তিক খরচ ও এনালাইসিস</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                            <div class="h-44 relative flex items-center justify-center">
+                                <canvas id="expensePieChart"></canvas>
+                            </div>
+                            <div id="categorySummaryList" class="space-y-2 max-h-48 overflow-y-auto pr-1 hide-scrollbar text-xs">
+                                <!-- Dynamic Category breakdown -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. SOLO MEAL TRACKER TAB -->
+            <section id="tab-meal" class="space-y-6 tab-content hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">🍳 একলা রান্নার হিসাব (Solo Meal Tracker)</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">সকাল, দুপুর ও রাতে ঘরে রান্না করে খেলে ১, না খেলে ০ দিন</p>
+                    </div>
+                    <button onclick="openModal('mealModal')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-2xl shadow-md transition flex items-center gap-2 text-sm no-print">
+                        <i class="fa-solid fa-plus"></i> নতুন মিল যোগ করুন
+                    </button>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-400 text-[11px] uppercase tracking-wider font-bold">
+                                    <th class="p-4">তারিখ</th>
+                                    <th class="p-4 text-center">সকাল</th>
+                                    <th class="p-4 text-center">দুপুর</th>
+                                    <th class="p-4 text-center">রাত</th>
+                                    <th class="p-4 text-center">মোট বেলা</th>
+                                    <th class="p-4 text-right">আনুমানিক খরচ</th>
+                                    <th class="p-4 text-center no-print">অ্যাকশন</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mealTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. INCOME TAB -->
+            <section id="tab-income" class="space-y-6 tab-content hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">💰 আয়ের হিসাব (Income)</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">বাসা থেকে পাঠানো টাকা বা অনলাইন কাজের পেমেন্ট রেকর্ড করুন</p>
+                    </div>
+                    <button onclick="openModal('incomeModal')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-2xl shadow-md transition flex items-center gap-2 text-sm no-print">
+                        <i class="fa-solid fa-plus"></i> আয় যোগ করুন
+                    </button>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-400 text-[11px] uppercase tracking-wider font-bold">
+                                    <th class="p-4">তারিখ</th>
+                                    <th class="p-4">উৎস (Source)</th>
+                                    <th class="p-4">বিবরণ</th>
+                                    <th class="p-4 text-right">টাকা</th>
+                                    <th class="p-4 text-center no-print">অ্যাকশন</th>
+                                </tr>
+                            </thead>
+                            <tbody id="incomeTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. EXPENSE TAB -->
+            <section id="tab-expense" class="space-y-6 tab-content hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">📉 খরচের হিসাব (Expense)</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">বাজার খরচ, বাসা ভাড়া, কারেন্ট বিল বা ওয়াইফাই বিল ট্র্যাক করুন</p>
+                    </div>
+                    <button onclick="openModal('expenseModal')" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-2.5 rounded-2xl shadow-md transition flex items-center gap-2 text-sm no-print">
+                        <i class="fa-solid fa-plus"></i> খরচ যোগ করুন
+                    </button>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-400 text-[11px] uppercase tracking-wider font-bold">
+                                    <th class="p-4">তারিখ</th>
+                                    <th class="p-4">খরচের খাত (Category)</th>
+                                    <th class="p-4">বিবরণ</th>
+                                    <th class="p-4 text-right">টাকা</th>
+                                    <th class="p-4 text-center no-print">অ্যাকশন</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenseTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. BUDGET TAB -->
+            <section id="tab-budget" class="space-y-6 tab-content hidden">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900 dark:text-white">🎯 বাজেট ও লিমিট (Budget & Savings)</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">প্রতি খাতের মাসিক খরচ ও বাজেট লক্ষ্য নির্ধারণ করুন</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm p-6">
+                    <div id="budgetContainer" class="space-y-4"></div>
+                </div>
+            </section>
+
+            <!-- 6. SETTINGS TAB -->
+            <section id="tab-settings" class="space-y-6 tab-content hidden no-print">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900 dark:text-white">⚙️ সেটিংস ও ক্যাটাগরি</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">rcivedaily.com অ্যাকাউন্ট ও কাস্টম ক্যাটাগরি</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 space-y-4 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">কাস্টম ক্যাটাগরি যোগ করুন (যেমন: বাসা ভাড়া, ওয়াইফাই বিল)</h3>
+                    <div class="flex gap-2">
+                        <input type="text" id="newCategoryInput" placeholder="নতুন খাতের নাম লিখুন..." class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <button onclick="addNewCategory()" class="bg-emerald-600 text-white px-5 py-3 rounded-2xl text-sm font-semibold hover:bg-emerald-700 transition">যুক্ত করুন</button>
+                    </div>
+                    <div id="categoryList" class="flex flex-wrap gap-2 pt-2"></div>
+                </div>
+
+                <!-- Author Badge -->
+                <div class="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-3xl p-6 text-center space-y-2">
+                    <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Developer Credit</span>
+                    <h4 class="text-lg font-extrabold text-slate-800 dark:text-slate-100">Author by Rifat Hosen ( GTEC - 5th )</h4>
+                    <p class="text-xs text-slate-500">Rcive Daily Cloud SaaS Edition v20</p>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Native Mobile Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-2 py-2 flex justify-around items-center md:hidden shadow-lg no-print">
+        <button onclick="switchTab('dashboard')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="dashboard">
+            <i class="fa-solid fa-chart-pie text-lg"></i>
+            <span class="text-[10px] font-bold mt-0.5">ড্যাশবোর্ড</span>
+        </button>
+        <button onclick="switchTab('meal')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="meal">
+            <i class="fa-solid fa-utensils text-lg"></i>
+            <span class="text-[10px] font-bold mt-0.5">রান্না</span>
+        </button>
+        <button onclick="switchTab('income')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="income">
+            <i class="fa-solid fa-wallet text-lg"></i>
+            <span class="text-[10px] font-bold mt-0.5">আয়</span>
+        </button>
+        <button onclick="switchTab('expense')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="expense">
+            <i class="fa-solid fa-receipt text-lg"></i>
+            <span class="text-[10px] font-bold mt-0.5">খরচ</span>
+        </button>
+        <button onclick="switchTab('budget')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="budget">
+            <i class="fa-solid fa-bullseye text-lg"></i>
+            <span class="text-[10px] font-bold mt-0.5">বাজেট</span>
+        </button>
+        <button onclick="switchTab('settings')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="settings">
+            <i class="fa-solid fa-gear text-lg"></i>
+            <span class="text-[10px] font-bold mt-0.5">সেটিংস</span>
+        </button>
+    </nav>
+
+    <!-- MODALS -->
+    <!-- Income Modal -->
+    <div id="incomeModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">💰 নতুন আয় যোগ করুন</h3>
+            <form onsubmit="handleIncomeSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">তারিখ</label>
+                    <input type="date" id="incDate" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">আয়ের উৎস</label>
+                    <select id="incSource" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <option value="বাসা থেকে পাঠানো টাকা">বাসা থেকে পাঠানো টাকা</option>
+                        <option value="অনলাইন কাজ / প্রজেক্ট পেমেন্ট">অনলাইন কাজ / প্রজেক্ট পেমেন্ট</option>
+                        <option value="ধার নেওয়া টাকা">ধার নেওয়া টাকা</option>
+                        <option value="অন্যান্য আয়">অন্যান্য আয়</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">টাকা (৳)</label>
+                    <input type="number" id="incAmount" step="0.01" required placeholder="0.00" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">বিবরণ</label>
+                    <input type="text" id="incNotes" placeholder="যেমন: মাসের হাতখরচ" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('incomeModal')" class="px-4 py-2.5 rounded-2xl text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">বাতিল</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-2xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow">সংরক্ষণ করুন</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Expense Modal -->
+    <div id="expenseModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">📉 খরচ যোগ করুন</h3>
+            <form onsubmit="handleExpenseSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">তারিখ</label>
+                    <input type="date" id="expDate" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">খরচের খাত</label>
+                    <select id="expCategory" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                        <!-- Populated Dynamically -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">টাকা (৳)</label>
+                    <input type="number" id="expAmount" step="0.01" required placeholder="0.00" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">বিবরণ</label>
+                    <input type="text" id="expNotes" placeholder="যেমন: বাসা ভাড়া / কারেন্ট বিল" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('expenseModal')" class="px-4 py-2.5 rounded-2xl text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">বাতিল</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-2xl text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow">সংরক্ষণ করুন</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Meal Modal -->
+    <div id="mealModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">🍳 দৈনিক মিল যোগ করুন</h3>
+            <form onsubmit="handleMealSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">তারিখ</label>
+                    <input type="date" id="mealDate" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">সকাল</label>
+                        <input type="number" id="mealBreakfast" step="0.5" min="0" max="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-3 py-2.5 text-sm text-center">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">দুপুর</label>
+                        <input type="number" id="mealLunch" step="0.5" min="0" max="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-3 py-2.5 text-sm text-center">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">রাত</label>
+                        <input type="number" id="mealDinner" step="0.5" min="0" max="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-3 py-2.5 text-sm text-center">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('mealModal')" class="px-4 py-2.5 rounded-2xl text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">বাতিল</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-2xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow">সংরক্ষণ করুন</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Script Engine -->
+    <script>
+        let activeUser = localStorage.getItem('rcive_active_user');
+        let appData = {};
+
+        function loadUserData(username) {
+            let userKey = `rcive_cloud_data_${username}`;
+            let saved = localStorage.getItem(userKey);
+            if(saved) {
+                appData = JSON.parse(saved);
+            } else {
+                appData = {
+                    income: [
+                        { id: 1, date: '2026-11-01', source: 'বাসা থেকে পাঠানো টাকা', amount: 6000, notes: 'মাসের হাতখরচ' },
+                        { id: 2, date: '2026-11-03', source: 'অনলাইন কাজ / প্রজেক্ট পেমেন্ট', amount: 4000, notes: 'ফ্রিল্যান্সিং কাজ' }
+                    ],
+                    expense: [
+                        { id: 1, date: '2026-11-01', category: 'নিজের রান্নার বাজার (চাল, ডাল, মাছ, মাংস, সবজি, তেল, মসলা)', amount: 850, notes: 'চাল ও ডাল' },
+                        { id: 2, date: '2026-11-01', category: 'বাসা ভাড়া', amount: 3500, notes: 'চলতি মাসের ভাড়া' },
+                        { id: 3, date: '2026-11-01', category: 'কারেন্ট বিল', amount: 450, notes: 'বিদ্যুৎ বিল' },
+                        { id: 4, date: '2026-11-01', category: 'ওয়াইফাই বিল', amount: 500, notes: 'ইন্টারনেট বিল' }
+                    ],
+                    meals: [
+                        { id: 1, date: '2026-11-01', breakfast: 1, lunch: 1, dinner: 1 },
+                        { id: 2, date: '2026-11-02', breakfast: 1, lunch: 1, dinner: 1 }
+                    ],
+                    categories: [
+                        'নিজের রান্নার বাজার (চাল, ডাল, মাছ, মাংস, সবজি, তেল, মসলা)',
+                        'বাসা ভাড়া',
+                        'কারেন্ট বিল',
+                        'ওয়াইফাই বিল',
+                        'বাইরের খাবার ও চা-নাস্তা',
+                        'যাতায়াত (বাস/রিকশা/বাইক)',
+                        'পড়াশোনা ও স্টেশনারি',
+                        'মোবাইল রিচার্জ ও ইন্টারনেট',
+                        'জরুরি / চিকিৎসা',
+                        'অন্যান্য বিবিধ খরচ'
+                    ],
+                    budgets: {
+                        'নিজের রান্নার বাজার (চাল, ডাল, মাছ, মাংস, সবজি, তেল, মসলা)': 4000,
+                        'বাসা ভাড়া': 4000,
+                        'কারেন্ট বিল': 600,
+                        'ওয়াইফাই বিল': 500,
+                        'বাইরের খাবার ও চা-নাস্তা': 800,
+                        'যাতায়াত (বাস/রিকশা/বাইক)': 600,
+                        'পড়াশোনা ও স্টেশনারি': 800,
+                        'জরুরি / চিকিৎসা': 500,
+                        'অন্যান্য বিবিধ খরচ': 400
+                    }
+                };
+                saveUserData();
+            }
+        }
+
+        function saveUserData() {
+            if(activeUser) {
+                localStorage.setItem(`rcive_cloud_data_${activeUser}`, JSON.stringify(appData));
+            }
+            renderAll();
+        }
+
+        let currentTab = 'dashboard';
+        let tabHistory = ['dashboard'];
+        let pieChartInstance = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            ['incDate', 'expDate', 'mealDate'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.value = today;
+            });
+
+            if(!activeUser) {
+                document.getElementById('authScreen').classList.remove('hidden');
+            } else {
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('userGreeting').innerText = `User: ${activeUser}`;
+                loadUserData(activeUser);
+                renderAll();
+            }
+        });
+
+        function handleCloudLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('cloudUser').value.trim();
+            if(user) {
+                activeUser = user;
+                localStorage.setItem('rcive_active_user', activeUser);
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('userGreeting').innerText = `User: ${activeUser}`;
+                loadUserData(activeUser);
+                renderAll();
+            }
+        }
+
+        function logoutCloud() {
+            localStorage.removeItem('rcive_active_user');
+            location.reload();
+        }
+
+        function switchTab(tabId, pushHistory = true) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if(btn.dataset.target === tabId) {
+                    btn.classList.add('text-emerald-500');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    btn.classList.remove('text-emerald-500');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+
+            if(pushHistory && tabHistory[tabHistory.length - 1] !== tabId) {
+                tabHistory.push(tabId);
+            }
+            currentTab = tabId;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function goBack() {
+            if (tabHistory.length > 1) {
+                tabHistory.pop();
+                let prevTab = tabHistory[tabHistory.length - 1];
+                switchTab(prevTab, false);
+            }
+        }
+
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('themeIcon').className = 'fa-solid fa-moon';
+            } else {
+                document.documentElement.classList.add('dark');
+                document.getElementById('themeIcon').className = 'fa-solid fa-sun';
+            }
+        }
+
+        function openModal(modalId) { 
+            if(modalId === 'expenseModal') {
+                populateCategoryDropdown();
+            }
+            document.getElementById(modalId).classList.remove('hidden'); 
+        }
+        function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
+
+        function populateCategoryDropdown() {
+            const select = document.getElementById('expCategory');
+            select.innerHTML = '';
+            appData.categories.forEach(cat => {
+                select.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+        }
+
+        function calculateTotals() {
+            const totalIncome = appData.income.reduce((sum, item) => sum + Number(item.amount), 0);
+            const totalExpense = appData.expense.reduce((sum, item) => sum + Number(item.amount), 0);
+            const marketExpense = appData.expense
+                .filter(item => item.category.includes('নিজের রান্নার বাজার'))
+                .reduce((sum, item) => sum + Number(item.amount), 0);
+            const outsideFood = appData.expense
+                .filter(item => item.category.includes('বাইরের খাবার'))
+                .reduce((sum, item) => sum + Number(item.amount), 0);
+            
+            const totalMeals = appData.meals.reduce((sum, m) => sum + Number(m.breakfast) + Number(m.lunch) + Number(m.dinner), 0);
+            const mealRate = totalMeals > 0 ? marketExpense / totalMeals : 0;
+            const balance = totalIncome - totalExpense;
+
+            return { totalIncome, totalExpense, marketExpense, outsideFood, totalMeals, mealRate, balance };
+        }
+
+        function renderAll() {
+            renderDashboard();
+            renderIncomeTable();
+            renderExpenseTable();
+            renderMealTable();
+            renderBudgetView();
+            renderSettings();
+        }
+
+        function renderDashboard() {
+            const { totalIncome, totalExpense, marketExpense, outsideFood, totalMeals, mealRate, balance } = calculateTotals();
+
+            document.getElementById('kpi-income').innerText = `৳ ${totalIncome.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpi-expense').innerText = `৳ ${totalExpense.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpi-market').innerText = `৳ ${marketExpense.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpi-balance').innerText = `৳ ${balance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+
+            document.getElementById('dash-meal-rate').innerText = `৳ ${mealRate.toFixed(2)}`;
+            document.getElementById('dash-total-meals').innerText = totalMeals.toFixed(1);
+
+            let totalBudget = Object.values(appData.budgets).reduce((a,b)=>a+b, 0);
+            let budgetPct = totalBudget > 0 ? Math.min(100, (totalExpense / totalBudget) * 100) : 0;
+
+            renderPieChart();
+            renderCategorySummaryList(totalExpense);
+        }
+
+        function renderCategorySummaryList(totalExpense) {
+            const container = document.getElementById('categorySummaryList');
+            container.innerHTML = '';
+
+            let catTotals = {};
+            appData.categories.forEach(c => catTotals[c] = 0);
+            appData.expense.forEach(e => {
+                if(catTotals[e.category] !== undefined) catTotals[e.category] += Number(e.amount);
+                else catTotals[e.category] = Number(e.amount);
+            });
+
+            for(let cat of appData.categories) {
+                let amt = catTotals[cat] || 0;
+                let pct = totalExpense > 0 ? ((amt / totalExpense) * 100).toFixed(1) : 0;
+                container.innerHTML += `
+                    <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 px-3 py-2 rounded-xl">
+                        <span class="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[140px]">${cat}</span>
+                        <div class="text-right">
+                            <span class="font-bold text-slate-900 dark:text-white">৳ ${amt.toLocaleString()}</span>
+                            <span class="text-[10px] text-slate-400 ml-1">(${pct}%)</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderIncomeTable() {
+            const tbody = document.getElementById('incomeTableBody');
+            tbody.innerHTML = '';
+            if(appData.income.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">কোনো আয়ের তথ্য পাওয়া যায়নি</td></tr>`;
+                return;
+            }
+            appData.income.forEach(item => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                        <td class="p-4 font-medium">${item.date}</td>
+                        <td class="p-4">${item.source}</td>
+                        <td class="p-4 text-slate-400">${item.notes || '-'}</td>
+                        <td class="p-4 text-right font-bold text-emerald-600">৳ ${Number(item.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                        <td class="p-4 text-center no-print">
+                            <button onclick="deleteItem('income', ${item.id})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderExpenseTable() {
+            const tbody = document.getElementById('expenseTableBody');
+            tbody.innerHTML = '';
+            if(appData.expense.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">কোনো খরচের তথ্য পাওয়া যায়নি</td></tr>`;
+                return;
+            }
+            appData.expense.forEach(item => {
+                let isHigh = Number(item.amount) >= 500;
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition ${isHigh ? 'bg-rose-50/50 dark:bg-rose-950/20' : ''}">
+                        <td class="p-4 font-medium">${item.date}</td>
+                        <td class="p-4 font-medium">${item.category}</td>
+                        <td class="p-4 text-slate-400">${item.notes || '-'}</td>
+                        <td class="p-4 text-right font-bold ${isHigh ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'}">৳ ${Number(item.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                        <td class="p-4 text-center no-print">
+                            <button onclick="deleteItem('expense', ${item.id})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderMealTable() {
+            const tbody = document.getElementById('mealTableBody');
+            tbody.innerHTML = '';
+            const { mealRate } = calculateTotals();
+
+            if(appData.meals.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">কোনো মিলের তথ্য পাওয়া যায়নি</td></tr>`;
+                return;
+            }
+
+            appData.meals.forEach(m => {
+                let totalM = Number(m.breakfast) + Number(m.lunch) + Number(m.dinner);
+                let cost = totalM * mealRate;
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                        <td class="p-4 font-medium">${m.date}</td>
+                        <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 font-medium">${m.breakfast}</span></td>
+                        <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 font-medium">${m.lunch}</span></td>
+                        <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 font-medium">${m.dinner}</span></td>
+                        <td class="p-4 text-center font-bold text-emerald-600">${totalM.toFixed(1)}</td>
+                        <td class="p-4 text-right font-semibold text-amber-600">৳ ${cost.toFixed(2)}</td>
+                        <td class="p-4 text-center no-print">
+                            <button onclick="deleteItem('meals', ${m.id})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderBudgetView() {
+            const container = document.getElementById('budgetContainer');
+            container.innerHTML = '';
+            
+            appData.categories.forEach(cat => {
+                let budget = appData.budgets[cat] || 1000;
+                let spent = appData.expense.filter(e => e.category === cat).reduce((sum, e) => sum + Number(e.amount), 0);
+                let remaining = budget - spent;
+                let pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+                let isOver = remaining < 0;
+
+                container.innerHTML += `
+                    <div class="space-y-2 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="font-bold text-slate-800 dark:text-slate-200">${cat}</span>
+                            <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${isOver ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}">
+                                ${isOver ? '⚠️ ওভার বাজেট' : '✅ সীমার ভেতরে'}
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-3 text-xs text-slate-400 gap-2">
+                            <div>বাজেট: <strong class="text-slate-800 dark:text-slate-200">৳ ${budget.toLocaleString()}</strong></div>
+                            <div>খরচ: <strong class="text-slate-800 dark:text-slate-200">৳ ${spent.toLocaleString()}</strong></div>
+                            <div class="text-right">বাকি: <strong class="${isOver ? 'text-rose-600' : 'text-emerald-600'}">৳ ${remaining.toLocaleString()}</strong></div>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full ${isOver ? 'bg-rose-600' : 'bg-emerald-500'}" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderSettings() {
+            const list = document.getElementById('categoryList');
+            list.innerHTML = '';
+            appData.categories.forEach(cat => {
+                list.innerHTML += `<span class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs px-3 py-1.5 rounded-2xl font-medium">${cat}</span>`;
+            });
+        }
+
+        function renderPieChart() {
+            const ctx = document.getElementById('expensePieChart').getContext('2d');
+            let catTotals = {};
+            appData.categories.forEach(c => catTotals[c] = 0);
+            appData.expense.forEach(e => {
+                if(catTotals[e.category] !== undefined) catTotals[e.category] += Number(e.amount);
+                else catTotals[e.category] = Number(e.amount);
+            });
+
+            let labels = Object.keys(catTotals).filter(k => catTotals[k] > 0);
+            let data = labels.map(k => catTotals[k]);
+
+            if (pieChartInstance) pieChartInstance.destroy();
+
+            pieChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: ['#10b981', '#2563eb', '#f59e0b', '#e11d48', '#7c3aed', '#db2777', '#0891b2', '#475569', '#14b8a6', '#6366f1'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function handleIncomeSubmit(e) {
+            e.preventDefault();
+            const newItem = {
+                id: Date.now(),
+                date: document.getElementById('incDate').value,
+                source: document.getElementById('incSource').value,
+                amount: parseFloat(document.getElementById('incAmount').value),
+                notes: document.getElementById('incNotes').value
+            };
+            appData.income.push(newItem);
+            saveUserData();
+            closeModal('incomeModal');
+            e.target.reset();
+        }
+
+        function handleExpenseSubmit(e) {
+            e.preventDefault();
+            const newItem = {
+                id: Date.now(),
+                date: document.getElementById('expDate').value,
+                category: document.getElementById('expCategory').value,
+                amount: parseFloat(document.getElementById('expAmount').value),
+                notes: document.getElementById('expNotes').value
+            };
+            appData.expense.push(newItem);
+            saveUserData();
+            closeModal('expenseModal');
+            e.target.reset();
+        }
+
+        function handleMealSubmit(e) {
+            e.preventDefault();
+            const newItem = {
+                id: Date.now(),
+                date: document.getElementById('mealDate').value,
+                breakfast: parseFloat(document.getElementById('mealBreakfast').value),
+                lunch: parseFloat(document.getElementById('mealLunch').value),
+                dinner: parseFloat(document.getElementById('mealDinner').value)
+            };
+            appData.meals.push(newItem);
+            saveUserData();
+            closeModal('mealModal');
+            e.target.reset();
+        }
+
+        function addNewCategory() {
+            const input = document.getElementById('newCategoryInput');
+            const val = input.value.trim();
+            if(val && !appData.categories.includes(val)) {
+                appData.categories.push(val);
+                appData.budgets[val] = 1000;
+                saveUserData();
+                input.value = '';
+                alert(`সফলভাবে "${val}" ক্যাটাগরি যুক্ত করা হয়েছে!`);
+            }
+        }
+
+        function deleteItem(type, id) {
+            if(confirm('আপনি কি নিশ্চিতভাবে এই এন্ট্রিটি ডিলিট করতে চান?')) {
+                appData[type] = appData[type].filter(item => item.id !== id);
+                saveUserData();
+            }
+        }
+
+        function generatePDFReport() {
+            const element = document.getElementById('pdfExportArea');
+            const opt = {
+                margin:       10,
+                filename:     `RciveDaily_Report_${activeUser}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().from(element).set(opt).save();
+        }
+    </script>
+</body>
+</html>
