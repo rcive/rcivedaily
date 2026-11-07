@@ -1,24 +1,39 @@
 {
+  "id": "app.rcive.daily",
   "name": "Rcive Daily",
-  "short_name": "Rcive",
-  "description": "Personal Finance & Meal Tracker",
-  "start_url": "./index.html",
+  "short_name": "Rcive Daily",
+  "description": "Smart personal finance and meal tracking application.",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f8fafc",
+  "background_color": "#0f172a",
   "theme_color": "#10b981",
+  "lang": "bn",
   "orientation": "portrait",
   "icons": [
     {
       "src": "./icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "./icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

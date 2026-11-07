@@ -2,28 +2,22 @@
  * ==========================================
  * RCIVE DAILY - EXPORT LAYER
  * ==========================================
- * Handles PDF, Excel, JSON Backup and Restore operations.
  */
 
 window.App = window.App || {};
 
 App.Export = {
     // ----------------------------------------------------------------------
-    // PDF Export
+    // PDF Export (Dark mode body bug fixed)
     // ----------------------------------------------------------------------
     downloadPDF: () => {
         const area = document.getElementById('pdfExportArea');
         if (!area) return;
 
-        // Temporarily adjust styles for better PDF output
-        const originalClasses = area.className;
-        area.className = 'w-[800px] bg-white p-8 text-black';
-        document.body.classList.remove('dark');
+        const isDark = document.documentElement.classList.contains('dark');
+        document.documentElement.classList.remove('dark');
         
-        // Hide scrollbars in tables for printing
-        document.querySelectorAll('.overflow-x-auto').forEach(el => {
-            el.style.overflow = 'visible';
-        });
+        document.querySelectorAll('.overflow-x-auto').forEach(el => el.style.overflow = 'visible');
 
         const dateStr = App.State.currentMonth || new Date().toISOString().slice(0,7);
         const opt = {
@@ -37,62 +31,47 @@ App.Export = {
         App.UI.showToast('পিডিএফ তৈরি হচ্ছে, অপেক্ষা করুন...');
 
         html2pdf().set(opt).from(area).save().then(() => {
-            // Restore styles
-            area.className = originalClasses;
-            document.querySelectorAll('.overflow-x-auto').forEach(el => {
-                el.style.overflow = '';
-            });
-            if (localStorage.getItem('theme') === 'dark') {
-                document.documentElement.classList.add('dark');
-            }
+            document.querySelectorAll('.overflow-x-auto').forEach(el => el.style.overflow = '');
+            if (isDark) document.documentElement.classList.add('dark');
             App.UI.showToast('পিডিএফ ডাউনলোড সম্পন্ন হয়েছে!');
         }).catch(err => {
             console.error('PDF Error:', err);
             App.UI.showToast('পিডিএফ তৈরিতে সমস্যা হয়েছে!', 'error');
-            area.className = originalClasses;
+            if (isDark) document.documentElement.classList.add('dark');
         });
     },
 
     // ----------------------------------------------------------------------
-    // Excel & CSV Export
+    // Excel & CSV Export (Sanitized against Formula Injection)
     // ----------------------------------------------------------------------
     exportSpreadsheet: (format = 'xlsx') => {
-        if (!window.XLSX) {
-            App.UI.showToast('এক্সেল লাইব্রেরি লোড হয়নি!', 'error');
-            return;
-        }
+        if (!window.XLSX) { App.UI.showToast('এক্সেল লাইব্রেরি লোড হয়নি!', 'error'); return; }
 
         const wb = XLSX.utils.book_new();
         const dateStr = App.State.currentMonth || new Date().toISOString().slice(0,7);
 
-        // 1. Transactions Sheet
+        // Sanitize string to prevent Excel Formula Injection (High Fix)
+        const sanitize = (val) => {
+            if (typeof val === 'string' && /^[=+\-@]/.test(val)) return "'" + val;
+            return val;
+        };
+
         const txHeaders = ['Date', 'Type', 'Category/Transfer', 'Wallet', 'Amount', 'Notes'];
         const txData = [txHeaders];
 
         App.State.transactions.forEach(t => {
             const w1 = App.State.wallets.find(w => w.wallet_id === t.wallet_id)?.name || '';
-            const cat = App.State.categories.find(c => c.id === t.category_id)?.name || '';
-            
-            let catOrTrans = cat;
+            let catOrTrans = App.State.categories.find(c => c.id === t.category_id)?.name || '';
             if (t.type === 'transfer') {
                 const w2 = App.State.wallets.find(w => w.wallet_id === t.to_wallet_id)?.name || '';
                 catOrTrans = `Transfer to ${w2}`;
             }
-
-            txData.push([
-                t.date,
-                t.type.toUpperCase(),
-                catOrTrans,
-                w1,
-                t.amount,
-                t.notes || ''
-            ]);
+            txData.push([t.date, t.type.toUpperCase(), catOrTrans, w1, t.amount, sanitize(t.notes || '')]);
         });
 
         const txWs = XLSX.utils.aoa_to_sheet(txData);
         XLSX.utils.book_append_sheet(wb, txWs, "Transactions");
 
-        // 2. Meals Sheet
         const mealHeaders = ['Date', 'Breakfast', 'Lunch', 'Dinner', 'Total'];
         const mealData = [mealHeaders];
 
@@ -104,77 +83,79 @@ App.Export = {
         const mealWs = XLSX.utils.aoa_to_sheet(mealData);
         XLSX.utils.book_append_sheet(wb, mealWs, "Meals");
 
-        // Execute Download
         XLSX.writeFile(wb, `Rcive_Data_${dateStr}.${format}`);
         App.UI.showToast(`${format.toUpperCase()} ফাইল ডাউনলোড হয়েছে!`);
     },
 
     // ----------------------------------------------------------------------
-    // JSON Backup (Master Data + Monthly Data)
+    // JSON Backup (Now pulls ALL historical DB data, not just current month)
     // ----------------------------------------------------------------------
-    downloadJSONBackup: () => {
-        const backupData = {
-            export_date: new Date().toISOString(),
-            app: 'Rcive Daily',
-            user: App.State.user.email,
-            data: {
-                settings: App.State.settings,
-                categories: App.State.categories,
-                wallets: App.State.wallets,
-                transactions: App.State.transactions,
-                meals: App.State.meals,
-                month: App.State.currentMonth
-            }
-        };
+    downloadJSONBackup: async () => {
+        App.UI.showToast('ব্যাকআপ প্রস্তুত হচ্ছে...');
+        try {
+            const { data: allTx, error: txErr } = await App.supabase.from('transactions').select('*');
+            const { data: allMeals, error: mErr } = await App.supabase.from('meals').select('*');
+            if(txErr || mErr) throw new Error('ডাটাবেস রিড এরর!');
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `Rcive_Backup_${App.State.currentMonth}.json`);
-        document.body.appendChild(downloadAnchorNode); // required for firefox
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
-        
-        App.UI.showToast('JSON ব্যাকআপ ডাউনলোড হয়েছে!');
+            const backupData = {
+                export_date: new Date().toISOString(),
+                app: 'Rcive Daily',
+                user: App.State.user.email,
+                data: {
+                    settings: App.State.settings,
+                    categories: App.State.categories,
+                    wallets: App.State.wallets,
+                    transactions: allTx || [],
+                    meals: allMeals || []
+                }
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `Rcive_Full_Backup_${App.getLocalMonthStr()}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            
+            App.UI.showToast('সম্পূর্ণ ডাটাবেস JSON ব্যাকআপ ডাউনলোড হয়েছে!');
+        } catch (err) { App.UI.showToast(err.message, 'error'); }
     },
 
     // ----------------------------------------------------------------------
-    // JSON Restore
+    // JSON Restore (Validation added, robust sequential execution)
     // ----------------------------------------------------------------------
     restoreJSONBackup: (file) => {
         if (!file) return;
-        
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
                 const json = JSON.parse(e.target.result);
-                if (json.app !== 'Rcive Daily' || !json.data) {
-                    throw new Error('অবৈধ ব্যাকআপ ফাইল!');
+                if (json.app !== 'Rcive Daily' || !json.data || !json.data.wallets) {
+                    throw new Error('অবৈধ বা ত্রুটিযুক্ত ব্যাকআপ ফাইল!');
                 }
+                if (!confirm('সতর্কতা: রিস্টোর করলে বর্তমান ডাটাবেসের সাথে ব্যাকআপের ডাটা মার্জ হয়ে যাবে। চালিয়ে যাবেন?')) return;
 
-                if (!confirm('সতর্কতা: রিস্টোর করলে বর্তমান মাসের ডাটার সাথে ব্যাকআপের ডাটা মার্জ হয়ে যেতে পারে। চালিয়ে যাবেন?')) {
-                    return;
-                }
-
-                App.UI.showToast('ডাটা রিস্টোর হচ্ছে...', 'success');
+                App.UI.showToast('ডাটা রিস্টোর হচ্ছে... দয়া করে অপেক্ষা করুন', 'success');
 
                 // 1. Restore Categories
                 if (json.data.categories) {
                     for (const cat of json.data.categories) {
                         const exists = App.State.categories.find(c => c.name === cat.name && c.type === cat.type);
-                        if (!exists) {
-                            await App.Data.addCategory(cat.name, cat.type, cat.is_bazar || false);
-                        }
+                        if (!exists) await App.Data.addCategory(cat.name, cat.type, cat.is_bazar || false);
                     }
-                    // Re-fetch to get accurate DB IDs mapped
-                    await App.Data.loadInitialData(); 
+                    await App.Data.loadInitialData(); // Reload to get fresh IDs mapping
                 }
 
-                // 2. Restore Transactions
+                // 2. Fetch full server data to prevent duplicates across all months
+                const { data: serverTx } = await App.supabase.from('transactions').select('date, amount, type, notes');
+                const { data: serverMeals } = await App.supabase.from('meals').select('date');
+
+                // 3. Restore Transactions (Using sequential await to prevent rate limits)
                 if (json.data.transactions) {
                     for (const tx of json.data.transactions) {
-                        // Attempt to map old Category ID to new DB based on name mapping
-                        let mappedCatId = null;
+                        let mappedCatId = null, mappedWalletId = null, mappedToWalletId = null;
+                        
                         if (tx.category_id) {
                             const oldCat = json.data.categories.find(c => c.id === tx.category_id);
                             if (oldCat) {
@@ -183,10 +164,6 @@ App.Export = {
                             }
                         }
 
-                        // Attempt to map Wallet ID based on name mapping
-                        let mappedWalletId = null;
-                        let mappedToWalletId = null;
-                        
                         const oldWallet = json.data.wallets.find(w => w.wallet_id === tx.wallet_id);
                         if (oldWallet) {
                             const newWallet = App.State.wallets.find(w => w.name === oldWallet.name);
@@ -202,50 +179,30 @@ App.Export = {
                         }
 
                         if (mappedWalletId) {
-                            // Check if exact tx already exists to prevent duplicate
-                            const exists = App.State.transactions.find(t => 
-                                t.date === tx.date && 
-                                t.amount === tx.amount && 
-                                t.type === tx.type && 
-                                (t.notes || '') === (tx.notes || '')
-                            );
-
+                            const exists = serverTx?.find(t => t.date === tx.date && Number(t.amount) === Number(tx.amount) && t.type === tx.type && (t.notes || '') === (tx.notes || ''));
                             if (!exists) {
-                                const payload = {
-                                    id: undefined, // let DB generate
-                                    date: tx.date,
-                                    type: tx.type,
-                                    amount: tx.amount,
-                                    wallet_id: mappedWalletId,
-                                    to_wallet_id: mappedToWalletId,
-                                    category_id: mappedCatId,
-                                    notes: tx.notes,
-                                    receipt_path: null // Do not restore dead file paths
-                                };
-                                await App.Data.saveTransaction(payload, null);
+                                await App.Data.saveTransaction({
+                                    id: undefined, date: tx.date, type: tx.type, amount: tx.amount,
+                                    wallet_id: mappedWalletId, to_wallet_id: mappedToWalletId, category_id: mappedCatId,
+                                    notes: tx.notes, receipt_path: null
+                                }, null);
                             }
                         }
                     }
                 }
 
-                // 3. Restore Meals
+                // 4. Restore Meals
                 if (json.data.meals) {
                     for (const m of json.data.meals) {
-                        const exists = App.State.meals.find(meal => meal.date === m.date);
+                        const exists = serverMeals?.find(meal => meal.date === m.date);
                         if (!exists) {
-                            await App.Data.saveMeal({
-                                id: undefined,
-                                date: m.date,
-                                breakfast: m.breakfast,
-                                lunch: m.lunch,
-                                dinner: m.dinner
-                            });
+                            await App.Data.saveMeal({ id: undefined, date: m.date, breakfast: m.breakfast, lunch: m.lunch, dinner: m.dinner });
                         }
                     }
                 }
 
-                App.UI.showToast('রিস্টোর সম্পন্ন হয়েছে!');
-                await App.Data.loadMonthData(); // Reload UI
+                App.UI.showToast('রিস্টোর সফলভাবে সম্পন্ন হয়েছে!');
+                await App.Data.loadMonthData();
 
             } catch (err) {
                 console.error(err);

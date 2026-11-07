@@ -2,7 +2,6 @@
  * ==========================================
  * RCIVE DAILY - UI & RENDERING LAYER
  * ==========================================
- * Handles DOM manipulation, chart rendering, and formatting.
  */
 
 window.App = window.App || {};
@@ -11,29 +10,26 @@ App.Charts = App.Charts || {};
 const $ = (id) => document.getElementById(id);
 
 App.UI = {
-    // ----------------------------------------------------------------------
-    // Helpers & Formatting
-    // ----------------------------------------------------------------------
     escapeText: (str) => {
-        if (!str) return '';
+        if (str === null || str === undefined) return '';
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
     },
 
     formatMoney: (amount) => {
-        return new Intl.NumberFormat('bn-BD', {
-            style: 'currency',
-            currency: 'BDT',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2
-        }).format(amount || 0);
+        return new Intl.NumberFormat('bn-BD', { style: 'currency', currency: 'BDT', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount || 0);
     },
 
     formatDate: (dateStr) => {
         if (!dateStr) return '';
-        const d = new Date(dateStr);
-        return d.toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' });
+        return new Date(dateStr).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' });
+    },
+
+    getLocalDateStr: () => {
+        const d = new Date();
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        return d.toISOString().split('T')[0];
     },
 
     showToast: (message, type = 'success') => {
@@ -53,9 +49,6 @@ App.UI = {
         }, 3000);
     },
 
-    // ----------------------------------------------------------------------
-    // Navigation & Global UI
-    // ----------------------------------------------------------------------
     switchTab: (tabId) => {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
         const target = $(`tab-${tabId}`);
@@ -70,19 +63,18 @@ App.UI = {
                 btn.classList.add('text-slate-400');
             }
         });
-
-        // Close context menu if open
-        $('contextMenu').classList.add('hidden');
+        $('contextMenu')?.classList.add('hidden');
     },
 
     renderMonthSelector: () => {
         const select = $('monthSelector');
+        if(!select) return;
         select.innerHTML = '';
         const now = new Date();
         
         for (let i = 0; i < 12; i++) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const val = d.toISOString().slice(0, 7); // YYYY-MM
+            const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             const label = d.toLocaleDateString('bn-BD', { month: 'long', year: 'numeric' });
             
             const opt = document.createElement('option');
@@ -101,43 +93,34 @@ App.UI = {
         const toWalletSelect = $('entryToWallet');
         const editToWalletSelect = $('editToWallet');
 
-        // Reset
-        [catSelect, editCatSelect, walletSelect, editWalletSelect, toWalletSelect, editToWalletSelect].forEach(el => el.innerHTML = '');
+        if(catSelect) catSelect.innerHTML = '';
+        if(walletSelect) walletSelect.innerHTML = '';
+        if(toWalletSelect) toWalletSelect.innerHTML = '';
 
-        // Only income/expense logic handles categories
         const currentType = document.querySelector('input[name="entryTypeRadio"]:checked')?.value || 'expense';
-        const cats = App.State.categories.filter(c => c.type === (currentType === 'transfer' ? 'expense' : currentType)); // Transfer doesn't use category, fallback to avoid error
+        const cats = App.State.categories.filter(c => c.type === (currentType === 'transfer' ? 'expense' : currentType));
 
         cats.forEach(c => {
-            const opt1 = new Option(c.name, c.id);
-            const opt2 = new Option(c.name, c.id);
-            catSelect.add(opt1);
-            editCatSelect.add(opt2);
+            if(catSelect) catSelect.add(new Option(c.name, c.id));
         });
 
         App.State.wallets.forEach(w => {
             const label = `${w.name} (${App.UI.formatMoney(w.balance)})`;
-            walletSelect.add(new Option(label, w.wallet_id));
-            editWalletSelect.add(new Option(label, w.wallet_id));
-            toWalletSelect.add(new Option(label, w.wallet_id));
-            editToWalletSelect.add(new Option(label, w.wallet_id));
+            if(walletSelect) walletSelect.add(new Option(label, w.wallet_id));
+            if(toWalletSelect) toWalletSelect.add(new Option(label, w.wallet_id));
         });
     },
 
-    refreshAllViews: () => {
+    refreshAllViews: async () => {
         App.UI.renderDashboard();
-        App.UI.renderLedger();
+        await App.UI.renderLedger();
         App.UI.renderMeals();
         App.UI.renderPlanning();
         App.UI.renderSettings();
     },
 
-    // ----------------------------------------------------------------------
-    // Tab Renders
-    // ----------------------------------------------------------------------
     renderDashboard: () => {
         const { kpi } = App.State;
-        
         $('kpiIncome').textContent = App.UI.formatMoney(kpi.income);
         $('kpiExpense').textContent = App.UI.formatMoney(kpi.expense);
         $('kpiSavings').textContent = App.UI.formatMoney(kpi.savings);
@@ -146,12 +129,12 @@ App.UI = {
 
         const totalBal = App.State.wallets.reduce((sum, w) => sum + Number(w.balance), 0);
         $('kpiBalance').textContent = App.UI.formatMoney(totalBal);
-
         App.UI.renderCharts();
     },
 
     renderCharts: () => {
-        // Prepare Data for Category Pie Chart (Expenses only)
+        if(typeof Chart === 'undefined') return; // Safe fallback if CDN fails
+
         const expCats = {};
         App.State.transactions.filter(t => t.type === 'expense').forEach(t => {
             const cat = App.State.categories.find(c => c.id === t.category_id);
@@ -163,21 +146,22 @@ App.UI = {
         const catData = Object.values(expCats);
         const catColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
 
-        // Render Summary List next to Pie Chart
         const summaryList = $('categorySummaryList');
-        summaryList.innerHTML = '';
-        catLabels.forEach((label, idx) => {
-            const div = document.createElement('div');
-            div.className = 'flex justify-between items-center text-xs font-bold p-2 glass-panel rounded-lg';
-            div.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full" style="background-color: ${catColors[idx % catColors.length]}"></span>
-                    <span>${App.UI.escapeText(label)}</span>
-                </div>
-                <span>${App.UI.formatMoney(catData[idx])}</span>
-            `;
-            summaryList.appendChild(div);
-        });
+        if(summaryList) {
+            summaryList.innerHTML = '';
+            catLabels.forEach((label, idx) => {
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center text-xs font-bold p-2 glass-panel rounded-lg';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full" style="background-color: ${catColors[idx % catColors.length]}"></span>
+                        <span>${App.UI.escapeText(label)}</span>
+                    </div>
+                    <span>${App.UI.formatMoney(catData[idx])}</span>
+                `;
+                summaryList.appendChild(div);
+            });
+        }
 
         if (App.Charts.category) App.Charts.category.destroy();
         App.Charts.category = new Chart($('categoryChart'), {
@@ -186,24 +170,22 @@ App.UI = {
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' }
         });
 
-        // Prepare Data for 7-Day Trend Chart
-        const today = new Date();
         const trendLabels = [];
         const trendIncome = [];
         const trendExpense = [];
-
+        
+        // Fix: Use correct local dates for last 7 days
         for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
+            const d = new Date();
             d.setDate(d.getDate() - i);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
             const dateStr = d.toISOString().split('T')[0];
+            
             trendLabels.push(d.toLocaleDateString('bn-BD', { weekday: 'short' }));
 
             const dayTx = App.State.transactions.filter(t => t.date === dateStr);
-            const dInc = dayTx.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
-            const dExp = dayTx.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
-
-            trendIncome.push(dInc);
-            trendExpense.push(dExp);
+            trendIncome.push(dayTx.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0));
+            trendExpense.push(dayTx.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0));
         }
 
         if (App.Charts.trend) App.Charts.trend.destroy();
@@ -227,25 +209,29 @@ App.UI = {
         });
     },
 
-    renderLedger: () => {
+    renderLedger: async () => {
         const tbody = $('txnTableBody');
+        if(!tbody) return;
         tbody.innerHTML = '';
         
-        const filterType = $('filterTxnType').value;
-        const searchRaw = $('searchTxn').value.toLowerCase();
+        const filterType = $('filterTxnType')?.value || 'all';
+        const searchRaw = $('searchTxn')?.value.toLowerCase() || '';
         
         let txns = App.State.transactions;
         if (filterType !== 'all') txns = txns.filter(t => t.type === filterType);
         if (searchRaw) {
-            txns = txns.filter(t => (t.notes || '').toLowerCase().includes(searchRaw));
+            txns = txns.filter(t => {
+                const catName = App.State.categories.find(c => c.id === t.category_id)?.name || '';
+                return (t.notes || '').toLowerCase().includes(searchRaw) || catName.toLowerCase().includes(searchRaw);
+            });
         }
 
         if (txns.length === 0) {
-            $('txnEmptyState').classList.remove('hidden');
+            $('txnEmptyState')?.classList.remove('hidden');
         } else {
-            $('txnEmptyState').classList.add('hidden');
+            $('txnEmptyState')?.classList.add('hidden');
             
-            txns.forEach(t => {
+            for (const t of txns) {
                 const w1 = App.State.wallets.find(w => w.wallet_id === t.wallet_id)?.name || 'Unknown';
                 const cat = App.State.categories.find(c => c.id === t.category_id)?.name || '';
                 
@@ -255,12 +241,10 @@ App.UI = {
 
                 if (t.type === 'income') {
                     sourceHTML = `<span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded text-[10px]">${App.UI.escapeText(w1)}</span>`;
-                    amountClass = 'text-emerald-500';
-                    amountPrefix = '+';
+                    amountClass = 'text-emerald-500'; amountPrefix = '+';
                 } else if (t.type === 'expense') {
                     sourceHTML = `<span class="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-2 py-1 rounded text-[10px]">${App.UI.escapeText(w1)}</span>`;
-                    amountClass = 'text-rose-500';
-                    amountPrefix = '-';
+                    amountClass = 'text-rose-500'; amountPrefix = '-';
                 } else {
                     const w2 = App.State.wallets.find(w => w.wallet_id === t.to_wallet_id)?.name || 'Unknown';
                     sourceHTML = `<div class="flex items-center justify-center gap-1 text-[10px]"><span class="bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">${App.UI.escapeText(w1)}</span><i class="fa-solid fa-arrow-right text-blue-500"></i><span class="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded">${App.UI.escapeText(w2)}</span></div>`;
@@ -269,55 +253,44 @@ App.UI = {
 
                 let receiptIcon = '';
                 if (t.receipt_path) {
-                    const url = App.supabase.storage.from('receipts').getPublicUrl(t.receipt_path).data.publicUrl;
-                    receiptIcon = `<a href="${url}" target="_blank" class="text-blue-500 hover:text-blue-600" title="রসিদ দেখুন"><i class="fa-solid fa-paperclip"></i></a>`;
+                    // High Fix: Secure Signed URL instead of getPublicUrl
+                    const { data } = await App.supabase.storage.from('receipts').createSignedUrl(t.receipt_path, 3600);
+                    if (data?.signedUrl) {
+                        receiptIcon = `<a href="${data.signedUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-600" title="রসিদ দেখুন"><i class="fa-solid fa-paperclip"></i></a>`;
+                    }
                 }
 
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors';
-                
                 tr.innerHTML = `
                     <td class="p-4 text-xs whitespace-nowrap">${App.UI.formatDate(t.date)}</td>
-                    <td class="p-4">
-                        <div class="flex items-center gap-2">
-                            ${receiptIcon}
-                            <div>
-                                <p class="leading-tight">${t.type !== 'transfer' ? App.UI.escapeText(cat) : 'ট্রান্সফার'}</p>
-                                ${t.notes ? `<p class="text-[10px] font-black text-slate-400">${App.UI.escapeText(t.notes)}</p>` : ''}
-                            </div>
-                        </div>
-                    </td>
+                    <td class="p-4"><div class="flex items-center gap-2">${receiptIcon}<div><p class="leading-tight">${t.type !== 'transfer' ? App.UI.escapeText(cat) : 'ট্রান্সফার'}</p>${t.notes ? `<p class="text-[10px] font-black text-slate-400">${App.UI.escapeText(t.notes)}</p>` : ''}</div></div></td>
                     <td class="p-4 text-center">${sourceHTML}</td>
                     <td class="p-4 text-right whitespace-nowrap ${amountClass}">${amountPrefix}${App.UI.formatMoney(t.amount)}</td>
                     <td class="p-4 text-center space-x-2 no-print">
-                        <button class="text-slate-400 hover:text-blue-500 transition-colors" onclick="App.UI.openEditModal('${t.id}', 'txn')" title="এডিট"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button class="text-slate-400 hover:text-rose-500 transition-colors" onclick="window.deleteTxn('${t.id}')" title="ডিলিট"><i class="fa-solid fa-trash"></i></button>
+                        <button class="text-slate-400 hover:text-blue-500 transition-colors edit-txn-btn" data-id="${t.id}" title="এডিট"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button class="text-slate-400 hover:text-rose-500 transition-colors delete-txn-btn" data-id="${t.id}" title="ডিলিট"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
-            });
+            }
         }
     },
 
     renderMeals: () => {
         const tbody = $('mealTableBody');
+        if(!tbody) return;
         tbody.innerHTML = '';
 
         if (App.State.meals.length === 0) {
-            $('mealEmptyState').classList.remove('hidden');
-            $('statBreakfast').textContent = '0';
-            $('statLunch').textContent = '0';
-            $('statDinner').textContent = '0';
+            $('mealEmptyState')?.classList.remove('hidden');
+            $('statBreakfast').textContent = '0'; $('statLunch').textContent = '0'; $('statDinner').textContent = '0';
         } else {
-            $('mealEmptyState').classList.add('hidden');
-            
+            $('mealEmptyState')?.classList.add('hidden');
             let bTotal = 0, lTotal = 0, dTotal = 0;
             
             App.State.meals.forEach(m => {
-                bTotal += Number(m.breakfast);
-                lTotal += Number(m.lunch);
-                dTotal += Number(m.dinner);
-                
+                bTotal += Number(m.breakfast); lTotal += Number(m.lunch); dTotal += Number(m.dinner);
                 const total = Number(m.breakfast) + Number(m.lunch) + Number(m.dinner);
                 
                 const tr = document.createElement('tr');
@@ -329,8 +302,8 @@ App.UI = {
                     <td class="p-4 text-indigo-600 dark:text-indigo-400">${m.dinner}</td>
                     <td class="p-4 text-amber-500 font-black">${total}</td>
                     <td class="p-4 no-print space-x-2">
-                        <button class="text-slate-400 hover:text-blue-500 transition-colors" onclick="App.UI.openEditModal('${m.id}', 'meal')" title="এডিট"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button class="text-slate-400 hover:text-rose-500 transition-colors" onclick="window.deleteMeal('${m.id}')" title="ডিলিট"><i class="fa-solid fa-trash"></i></button>
+                        <button class="text-slate-400 hover:text-blue-500 transition-colors edit-meal-btn" data-id="${m.id}" title="এডিট"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button class="text-slate-400 hover:text-rose-500 transition-colors delete-meal-btn" data-id="${m.id}" title="ডিলিট"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -343,99 +316,68 @@ App.UI = {
     },
 
     renderPlanning: () => {
-        // Wallet Cards
         const wContainer = $('walletCardsContainer');
-        wContainer.innerHTML = '';
-        App.State.wallets.forEach(w => {
-            const div = document.createElement('div');
-            div.className = 'glass-panel p-4 rounded-xl flex flex-col justify-between';
-            div.innerHTML = `
-                <span class="text-[10px] font-black uppercase text-slate-500 mb-2 truncate">${App.UI.escapeText(w.name)}</span>
-                <h4 class="text-sm font-black text-slate-800 dark:text-white truncate">${App.UI.formatMoney(w.balance)}</h4>
-            `;
-            wContainer.appendChild(div);
-        });
+        if(wContainer) {
+            wContainer.innerHTML = '';
+            App.State.wallets.forEach(w => {
+                const div = document.createElement('div');
+                div.className = 'glass-panel p-4 rounded-xl flex flex-col justify-between';
+                div.innerHTML = `<span class="text-[10px] font-black uppercase text-slate-500 mb-2 truncate">${App.UI.escapeText(w.name)}</span><h4 class="text-sm font-black text-slate-800 dark:text-white truncate">${App.UI.formatMoney(w.balance)}</h4>`;
+                wContainer.appendChild(div);
+            });
+        }
 
-        // Budget Tracker
         const budget = Number(App.State.settings.monthly_budget);
-        $('budgetInput').value = budget > 0 ? budget : '';
+        if($('budgetInput')) $('budgetInput').value = budget > 0 ? budget : '';
         if (budget > 0) {
             const exp = App.State.kpi.expense;
             const pct = Math.min(100, Math.round((exp / budget) * 100));
             $('budgetPercentText').textContent = `${pct}% (${App.UI.formatMoney(exp)} / ${App.UI.formatMoney(budget)})`;
             $('budgetProgressBar').style.width = `${pct}%`;
-            
-            if (pct >= 100) {
-                $('budgetProgressBar').classList.replace('bg-emerald-500', 'bg-rose-500');
-                $('budgetWarningText').classList.remove('hidden');
-            } else {
-                $('budgetProgressBar').classList.replace('bg-rose-500', 'bg-emerald-500');
-                $('budgetWarningText').classList.add('hidden');
-            }
-        } else {
-            $('budgetPercentText').textContent = 'সেট করা নেই';
-            $('budgetProgressBar').style.width = '0%';
-            $('budgetWarningText').classList.add('hidden');
+            if (pct >= 100) { $('budgetProgressBar').classList.replace('bg-emerald-500', 'bg-rose-500'); $('budgetWarningText').classList.remove('hidden'); } 
+            else { $('budgetProgressBar').classList.replace('bg-rose-500', 'bg-emerald-500'); $('budgetWarningText').classList.add('hidden'); }
         }
 
-        // Savings Tracker
         const savingsTarget = Number(App.State.settings.savings_goal);
-        $('savingsGoalInput').value = savingsTarget > 0 ? savingsTarget : '';
+        if($('savingsGoalInput')) $('savingsGoalInput').value = savingsTarget > 0 ? savingsTarget : '';
         if (savingsTarget > 0) {
             const sav = App.State.kpi.savings;
             const pct = sav > 0 ? Math.min(100, Math.round((sav / savingsTarget) * 100)) : 0;
             $('savingsPercentText').textContent = `${pct}% (${App.UI.formatMoney(sav)} / ${App.UI.formatMoney(savingsTarget)})`;
             $('savingsProgressBar').style.width = `${pct}%`;
-        } else {
-            $('savingsPercentText').textContent = 'সেট করা নেই';
-            $('savingsProgressBar').style.width = '0%';
         }
     },
 
     renderSettings: () => {
-        // Categories
         const catContainer = $('settingsCategoryList');
-        catContainer.innerHTML = '';
-        App.State.categories.forEach(c => {
-            const div = document.createElement('div');
-            const typeColor = c.type === 'income' ? 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30' : 'text-rose-500 bg-rose-100 dark:bg-rose-900/30';
-            const bazarBadge = c.is_bazar ? '<i class="fa-solid fa-basket-shopping text-[10px] ml-1 text-amber-500" title="বাজার খাত"></i>' : '';
-            
-            div.className = `flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border border-transparent hover:border-rose-300 transition-colors ${typeColor}`;
-            div.innerHTML = `
-                <span>${App.UI.escapeText(c.name)}${bazarBadge}</span>
-                <button type="button" onclick="window.deleteCat('${c.id}')" class="ml-1 text-rose-500 hover:text-rose-700 p-1" title="ডিলিট"><i class="fa-solid fa-xmark"></i></button>
-            `;
-            catContainer.appendChild(div);
-        });
+        if(catContainer) {
+            catContainer.innerHTML = '';
+            App.State.categories.forEach(c => {
+                const div = document.createElement('div');
+                const typeColor = c.type === 'income' ? 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30' : 'text-rose-500 bg-rose-100 dark:bg-rose-900/30';
+                const bazarBadge = c.is_bazar ? '<i class="fa-solid fa-basket-shopping text-[10px] ml-1 text-amber-500" title="বাজার খাত"></i>' : '';
+                div.className = `flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border border-transparent hover:border-rose-300 transition-colors ${typeColor}`;
+                div.innerHTML = `<span>${App.UI.escapeText(c.name)}${bazarBadge}</span><button type="button" class="delete-cat-btn ml-1 text-rose-500 hover:text-rose-700 p-1" data-id="${c.id}" title="ডিলিট"><i class="fa-solid fa-xmark"></i></button>`;
+                catContainer.appendChild(div);
+            });
+        }
 
-        // Wallet Opening Balances
+        // Fix: Prevent input wipe on refresh by maintaining values
         const wOpenList = $('walletOpeningList');
-        wOpenList.innerHTML = '';
-        App.State.wallets.forEach(w => {
-            const div = document.createElement('div');
-            div.className = 'flex items-center justify-between gap-3 p-3 glass-panel rounded-xl';
-            div.innerHTML = `
-                <span class="text-xs font-bold w-24 truncate">${App.UI.escapeText(w.name)}</span>
-                <input type="number" step="any" inputmode="decimal" class="wallet-opening-input flex-1 bg-transparent outline-none text-right font-black text-sm" data-id="${w.wallet_id}" value="${w.opening_balance}">
-                <span class="text-xs font-black text-slate-400">৳</span>
-            `;
-            wOpenList.appendChild(div);
-        });
+        if(wOpenList && wOpenList.children.length === 0) {
+            App.State.wallets.forEach(w => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between gap-3 p-3 glass-panel rounded-xl';
+                div.innerHTML = `<span class="text-xs font-bold w-24 truncate">${App.UI.escapeText(w.name)}</span><input type="number" step="any" inputmode="decimal" class="wallet-opening-input flex-1 bg-transparent outline-none text-right font-black text-sm" data-id="${w.wallet_id}" value="${w.opening_balance}"><span class="text-xs font-black text-slate-400">৳</span>`;
+                wOpenList.appendChild(div);
+            });
+        }
     },
 
-    // ----------------------------------------------------------------------
-    // Modals
-    // ----------------------------------------------------------------------
     openEntryModal: () => {
-        $('entryForm').reset();
+        $('entryForm')?.reset();
+        if (!$('entryDate').value) $('entryDate').value = App.UI.getLocalDateStr();
         
-        // Auto-fill today's date if not set
-        if (!$('entryDate').value) {
-            $('entryDate').value = new Date().toISOString().split('T')[0];
-        }
-        
-        // Trigger radio logic
         const ev = new Event('change');
         document.querySelector('input[name="entryTypeRadio"][value="expense"]').checked = true;
         document.querySelector('input[name="entryTypeRadio"][value="expense"]').dispatchEvent(ev);
@@ -445,12 +387,11 @@ App.UI = {
         App.UI.populateDropdowns();
     },
 
-    closeEntryModal: () => {
-        $('entryModal').classList.add('hidden');
-    },
+    closeEntryModal: () => $('entryModal')?.classList.add('hidden'),
+    closeEditModal: () => $('editModal')?.classList.add('hidden'),
 
     openEditModal: (id, type) => {
-        $('editForm').reset();
+        $('editForm')?.reset();
         $('editId').value = id;
         $('editType').value = type;
         $('editOriginalReceipt').value = '';
@@ -461,7 +402,6 @@ App.UI = {
 
             $('editTxnFields').classList.remove('hidden');
             $('editMealFields').classList.add('hidden');
-            
             $('editDate').value = txn.date;
             $('editAmount').value = txn.amount;
             $('editNotes').value = txn.notes || '';
@@ -473,38 +413,43 @@ App.UI = {
                 $('editReceiptLabel').textContent = 'নতুন রসিদ ছবি আপলোড (ঐচ্ছিক)';
             }
 
-            App.UI.populateDropdowns();
+            // Fix Edit Dropdown Mapping Bug
+            const editCatSelect = $('editCategory');
+            const cats = App.State.categories.filter(c => c.type === (txn.type === 'transfer' ? 'expense' : txn.type));
+            editCatSelect.innerHTML = '';
+            cats.forEach(c => editCatSelect.add(new Option(c.name, c.id)));
 
-            // Adjust form for type
+            const editWalletSelect = $('editWallet');
+            const editToWalletSelect = $('editToWallet');
+            editWalletSelect.innerHTML = ''; editToWalletSelect.innerHTML = '';
+            App.State.wallets.forEach(w => {
+                const label = `${w.name} (${App.UI.formatMoney(w.balance)})`;
+                editWalletSelect.add(new Option(label, w.wallet_id));
+                editToWalletSelect.add(new Option(label, w.wallet_id));
+            });
+
             if (txn.type === 'transfer') {
-                $('editWalletCategoryRow').classList.remove('grid-cols-2');
-                $('editWalletCategoryRow').classList.add('grid-cols-1');
+                $('editWalletCategoryRow').classList.replace('grid-cols-2', 'grid-cols-1');
                 $('editCategoryContainer').classList.add('hidden');
                 $('editTransferToContainer').classList.remove('hidden');
-                
                 $('editWallet').value = txn.wallet_id;
                 $('editToWallet').value = txn.to_wallet_id;
             } else {
-                $('editWalletCategoryRow').classList.add('grid-cols-2');
-                $('editWalletCategoryRow').classList.remove('grid-cols-1');
+                $('editWalletCategoryRow').classList.replace('grid-cols-1', 'grid-cols-2');
                 $('editCategoryContainer').classList.remove('hidden');
                 $('editTransferToContainer').classList.add('hidden');
                 
-                // Temporarily inject missing category into dropdown if it was deleted
                 if (txn.category_id && !App.State.categories.find(c => c.id === txn.category_id)) {
                     $('editCategory').add(new Option('Deleted Category', txn.category_id));
                 }
-                
                 $('editCategory').value = txn.category_id;
                 $('editWallet').value = txn.wallet_id;
             }
         } else if (type === 'meal') {
             const meal = App.State.meals.find(m => m.id === id);
             if (!meal) return;
-
             $('editTxnFields').classList.add('hidden');
             $('editMealFields').classList.remove('hidden');
-
             $('editDate').value = meal.date;
             $('editMealB').value = meal.breakfast;
             $('editMealL').value = meal.lunch;
@@ -512,46 +457,55 @@ App.UI = {
         }
 
         $('editModal').classList.remove('hidden');
-    },
-
-    closeEditModal: () => {
-        $('editModal').classList.add('hidden');
     }
 };
 
-// Global expose for inline onclick attributes in HTML strings
-window.deleteTxn = async (id) => {
-    if (confirm('আপনি কি এই ট্রানজেকশনটি ডিলিট করতে চান?')) {
-        try {
-            const t = App.State.transactions.find(x => x.id === id);
-            await App.Data.deleteTransaction(id, t?.receipt_path);
-            App.UI.showToast('ট্রানজেকশন ডিলিট করা হয়েছে');
-        } catch (err) {
-            App.UI.showToast(err.message, 'error');
+// --- GLOBAL EVENT DELEGATION (Removed Inline Onclicks) ---
+document.addEventListener('click', async (e) => {
+    // Delete Transaction
+    if (e.target.closest('.delete-txn-btn')) {
+        const id = e.target.closest('.delete-txn-btn').dataset.id;
+        if (confirm('আপনি কি এই ট্রানজেকশনটি ডিলিট করতে চান?')) {
+            try {
+                const t = App.State.transactions.find(x => x.id === id);
+                await App.Data.deleteTransaction(id, t?.receipt_path);
+                App.UI.showToast('ট্রানজেকশন ডিলিট করা হয়েছে');
+            } catch (err) { App.UI.showToast(err.message, 'error'); }
         }
     }
-};
-
-window.deleteMeal = async (id) => {
-    if (confirm('আপনি কি এই মিল এন্ট্রি ডিলিট করতে চান?')) {
-        try {
-            await App.Data.deleteMeal(id);
-            App.UI.showToast('মিল এন্ট্রি ডিলিট করা হয়েছে');
-        } catch (err) {
-            App.UI.showToast(err.message, 'error');
+    // Delete Meal
+    if (e.target.closest('.delete-meal-btn')) {
+        const id = e.target.closest('.delete-meal-btn').dataset.id;
+        if (confirm('আপনি কি এই মিল এন্ট্রি ডিলিট করতে চান?')) {
+            try { await App.Data.deleteMeal(id); App.UI.showToast('মিল এন্ট্রি ডিলিট করা হয়েছে'); } 
+            catch (err) { App.UI.showToast(err.message, 'error'); }
         }
     }
-};
-
-window.deleteCat = async (id) => {
-    if (confirm('আপনি কি এই ক্যাটাগরিটি ডিলিট করতে চান?')) {
-        try {
-            await App.Data.deleteCategory(id);
-            App.UI.showToast('ক্যাটাগরি ডিলিট করা হয়েছে');
-            App.UI.populateDropdowns();
-            App.UI.renderSettings();
-        } catch (err) {
-            App.UI.showToast(err.message, 'error');
+    // Delete Category
+    if (e.target.closest('.delete-cat-btn')) {
+        const id = e.target.closest('.delete-cat-btn').dataset.id;
+        if (confirm('আপনি কি এই ক্যাটাগরিটি ডিলিট করতে চান?')) {
+            try { 
+                await App.Data.deleteCategory(id); 
+                App.UI.showToast('ক্যাটাগরি ডিলিট করা হয়েছে');
+                App.UI.populateDropdowns(); App.UI.renderSettings(); 
+            } 
+            catch (err) { App.UI.showToast(err.message, 'error'); }
         }
     }
-};
+    // Open Edit Modals
+    if (e.target.closest('.edit-txn-btn')) {
+        App.UI.openEditModal(e.target.closest('.edit-txn-btn').dataset.id, 'txn');
+    }
+    if (e.target.closest('.edit-meal-btn')) {
+        App.UI.openEditModal(e.target.closest('.edit-meal-btn').dataset.id, 'meal');
+    }
+});
+
+// Modal Escape key support
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        App.UI.closeEntryModal();
+        App.UI.closeEditModal();
+    }
+});
