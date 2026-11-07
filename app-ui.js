@@ -5,11 +5,13 @@
  */
 
 window.App = window.App || {};
-App.Charts = App.Charts || {};
+window.App.Charts = window.App.Charts || {};
 
-const $ = (id) => document.getElementById(id);
+// Safe global selector to prevent redeclaration conflicts
+const $ = window.$ || ((id) => document.getElementById(id));
+window.$ = $;
 
-App.UI = {
+window.App.UI = {
     escapeText: (str) => {
         if (str === null || str === undefined) return '';
         const div = document.createElement('div');
@@ -34,11 +36,12 @@ App.UI = {
 
     showToast: (message, type = 'success') => {
         const container = $('toastContainer');
+        if(!container) return;
         const toast = document.createElement('div');
         const isErr = type === 'error';
         
         toast.className = `glass-panel px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 toast-animate border-l-4 ${isErr ? 'border-rose-500' : 'border-emerald-500'} bg-white dark:bg-slate-900 pointer-events-auto`;
-        toast.innerHTML = `<i class="fa-solid ${isErr ? 'fa-circle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'}"></i><span class="text-sm font-bold text-slate-800 dark:text-white">${App.UI.escapeText(message)}</span>`;
+        toast.innerHTML = `<i class="fa-solid ${isErr ? 'fa-circle-exclamation text-rose-500' : 'fa-circle-check text-emerald-500'}"></i><span class="text-sm font-bold text-slate-800 dark:text-white">${window.App.UI.escapeText(message)}</span>`;
         
         container.prepend(toast);
         setTimeout(() => {
@@ -87,57 +90,54 @@ App.UI = {
 
     populateDropdowns: () => {
         const catSelect = $('entryCategory');
-        const editCatSelect = $('editCategory');
         const walletSelect = $('entryWallet');
-        const editWalletSelect = $('editWallet');
         const toWalletSelect = $('entryToWallet');
-        const editToWalletSelect = $('editToWallet');
 
         if(catSelect) catSelect.innerHTML = '';
         if(walletSelect) walletSelect.innerHTML = '';
         if(toWalletSelect) toWalletSelect.innerHTML = '';
 
         const currentType = document.querySelector('input[name="entryTypeRadio"]:checked')?.value || 'expense';
-        const cats = App.State.categories.filter(c => c.type === (currentType === 'transfer' ? 'expense' : currentType));
+        const cats = window.App.State.categories.filter(c => c.type === (currentType === 'transfer' ? 'expense' : currentType));
 
         cats.forEach(c => {
             if(catSelect) catSelect.add(new Option(c.name, c.id));
         });
 
-        App.State.wallets.forEach(w => {
-            const label = `${w.name} (${App.UI.formatMoney(w.balance)})`;
+        window.App.State.wallets.forEach(w => {
+            const label = `${w.name} (${window.App.UI.formatMoney(w.balance)})`;
             if(walletSelect) walletSelect.add(new Option(label, w.wallet_id));
             if(toWalletSelect) toWalletSelect.add(new Option(label, w.wallet_id));
         });
     },
 
     refreshAllViews: async () => {
-        App.UI.renderDashboard();
-        await App.UI.renderLedger();
-        App.UI.renderMeals();
-        App.UI.renderPlanning();
-        App.UI.renderSettings();
+        window.App.UI.renderDashboard();
+        await window.App.UI.renderLedger();
+        window.App.UI.renderMeals();
+        window.App.UI.renderPlanning();
+        window.App.UI.renderSettings();
     },
 
     renderDashboard: () => {
-        const { kpi } = App.State;
-        $('kpiIncome').textContent = App.UI.formatMoney(kpi.income);
-        $('kpiExpense').textContent = App.UI.formatMoney(kpi.expense);
-        $('kpiSavings').textContent = App.UI.formatMoney(kpi.savings);
-        $('kpiMealRate').textContent = App.UI.formatMoney(kpi.mealRate);
-        $('kpiTotalMeals').textContent = kpi.totalMeals;
+        const { kpi } = window.App.State;
+        if($('kpiIncome')) $('kpiIncome').textContent = window.App.UI.formatMoney(kpi.income);
+        if($('kpiExpense')) $('kpiExpense').textContent = window.App.UI.formatMoney(kpi.expense);
+        if($('kpiSavings')) $('kpiSavings').textContent = window.App.UI.formatMoney(kpi.savings);
+        if($('kpiMealRate')) $('kpiMealRate').textContent = window.App.UI.formatMoney(kpi.mealRate);
+        if($('kpiTotalMeals')) $('kpiTotalMeals').textContent = kpi.totalMeals;
 
-        const totalBal = App.State.wallets.reduce((sum, w) => sum + Number(w.balance), 0);
-        $('kpiBalance').textContent = App.UI.formatMoney(totalBal);
-        App.UI.renderCharts();
+        const totalBal = window.App.State.wallets.reduce((sum, w) => sum + Number(w.balance), 0);
+        if($('kpiBalance')) $('kpiBalance').textContent = window.App.UI.formatMoney(totalBal);
+        window.App.UI.renderCharts();
     },
 
     renderCharts: () => {
-        if(typeof Chart === 'undefined') return; // Safe fallback if CDN fails
+        if(typeof Chart === 'undefined') return;
 
         const expCats = {};
-        App.State.transactions.filter(t => t.type === 'expense').forEach(t => {
-            const cat = App.State.categories.find(c => c.id === t.category_id);
+        window.App.State.transactions.filter(t => t.type === 'expense').forEach(t => {
+            const cat = window.App.State.categories.find(c => c.id === t.category_id);
             const name = cat ? cat.name : 'Unknown';
             expCats[name] = (expCats[name] || 0) + Number(t.amount);
         });
@@ -155,26 +155,28 @@ App.UI = {
                 div.innerHTML = `
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full" style="background-color: ${catColors[idx % catColors.length]}"></span>
-                        <span>${App.UI.escapeText(label)}</span>
+                        <span>${window.App.UI.escapeText(label)}</span>
                     </div>
-                    <span>${App.UI.formatMoney(catData[idx])}</span>
+                    <span>${window.App.UI.formatMoney(catData[idx])}</span>
                 `;
                 summaryList.appendChild(div);
             });
         }
 
-        if (App.Charts.category) App.Charts.category.destroy();
-        App.Charts.category = new Chart($('categoryChart'), {
-            type: 'doughnut',
-            data: { labels: catLabels, datasets: [{ data: catData, backgroundColor: catColors, borderWidth: 0 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' }
-        });
+        if (window.App.Charts.category) window.App.Charts.category.destroy();
+        const catCanvas = $('categoryChart');
+        if(catCanvas) {
+            window.App.Charts.category = new Chart(catCanvas, {
+                type: 'doughnut',
+                data: { labels: catLabels, datasets: [{ data: catData, backgroundColor: catColors, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' }
+            });
+        }
 
         const trendLabels = [];
         const trendIncome = [];
         const trendExpense = [];
         
-        // Fix: Use correct local dates for last 7 days
         for (let i = 6; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
@@ -183,30 +185,33 @@ App.UI = {
             
             trendLabels.push(d.toLocaleDateString('bn-BD', { weekday: 'short' }));
 
-            const dayTx = App.State.transactions.filter(t => t.date === dateStr);
+            const dayTx = window.App.State.transactions.filter(t => t.date === dateStr);
             trendIncome.push(dayTx.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0));
             trendExpense.push(dayTx.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0));
         }
 
-        if (App.Charts.trend) App.Charts.trend.destroy();
+        if (window.App.Charts.trend) window.App.Charts.trend.destroy();
         const isDark = document.documentElement.classList.contains('dark');
-        App.Charts.trend = new Chart($('trendChart'), {
-            type: 'line',
-            data: {
-                labels: trendLabels,
-                datasets: [
-                    { label: 'আয়', data: trendIncome, borderColor: '#10b981', backgroundColor: '#10b98120', fill: true, tension: 0.4 },
-                    { label: 'খরচ', data: trendExpense, borderColor: '#ef4444', backgroundColor: '#ef444420', fill: true, tension: 0.4 }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: {
-                    y: { border: { display: false }, grid: { color: isDark ? '#334155' : '#e2e8f0' } },
-                    x: { border: { display: false }, grid: { display: false } }
+        const trendCanvas = $('trendChart');
+        if(trendCanvas) {
+            window.App.Charts.trend = new Chart(trendCanvas, {
+                type: 'line',
+                data: {
+                    labels: trendLabels,
+                    datasets: [
+                        { label: 'আয়', data: trendIncome, borderColor: '#10b981', backgroundColor: '#10b98120', fill: true, tension: 0.4 },
+                        { label: 'খরচ', data: trendExpense, borderColor: '#ef4444', backgroundColor: '#ef444420', fill: true, tension: 0.4 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { border: { display: false }, grid: { color: isDark ? '#334155' : '#e2e8f0' } },
+                        x: { border: { display: false }, grid: { display: false } }
+                    }
                 }
-            }
-        });
+            });
+        }
     },
 
     renderLedger: async () => {
@@ -217,11 +222,11 @@ App.UI = {
         const filterType = $('filterTxnType')?.value || 'all';
         const searchRaw = $('searchTxn')?.value.toLowerCase() || '';
         
-        let txns = App.State.transactions;
+        let txns = window.App.State.transactions;
         if (filterType !== 'all') txns = txns.filter(t => t.type === filterType);
         if (searchRaw) {
             txns = txns.filter(t => {
-                const catName = App.State.categories.find(c => c.id === t.category_id)?.name || '';
+                const catName = window.App.State.categories.find(c => c.id === t.category_id)?.name || '';
                 return (t.notes || '').toLowerCase().includes(searchRaw) || catName.toLowerCase().includes(searchRaw);
             });
         }
@@ -232,29 +237,28 @@ App.UI = {
             $('txnEmptyState')?.classList.add('hidden');
             
             for (const t of txns) {
-                const w1 = App.State.wallets.find(w => w.wallet_id === t.wallet_id)?.name || 'Unknown';
-                const cat = App.State.categories.find(c => c.id === t.category_id)?.name || '';
+                const w1 = window.App.State.wallets.find(w => w.wallet_id === t.wallet_id)?.name || 'Unknown';
+                const cat = window.App.State.categories.find(c => c.id === t.category_id)?.name || '';
                 
                 let sourceHTML = '';
                 let amountClass = 'text-slate-800 dark:text-white';
                 let amountPrefix = '';
 
                 if (t.type === 'income') {
-                    sourceHTML = `<span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded text-[10px]">${App.UI.escapeText(w1)}</span>`;
+                    sourceHTML = `<span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded text-[10px]">${window.App.UI.escapeText(w1)}</span>`;
                     amountClass = 'text-emerald-500'; amountPrefix = '+';
                 } else if (t.type === 'expense') {
-                    sourceHTML = `<span class="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-2 py-1 rounded text-[10px]">${App.UI.escapeText(w1)}</span>`;
+                    sourceHTML = `<span class="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-2 py-1 rounded text-[10px]">${window.App.UI.escapeText(w1)}</span>`;
                     amountClass = 'text-rose-500'; amountPrefix = '-';
                 } else {
-                    const w2 = App.State.wallets.find(w => w.wallet_id === t.to_wallet_id)?.name || 'Unknown';
-                    sourceHTML = `<div class="flex items-center justify-center gap-1 text-[10px]"><span class="bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">${App.UI.escapeText(w1)}</span><i class="fa-solid fa-arrow-right text-blue-500"></i><span class="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded">${App.UI.escapeText(w2)}</span></div>`;
+                    const w2 = window.App.State.wallets.find(w => w.wallet_id === t.to_wallet_id)?.name || 'Unknown';
+                    sourceHTML = `<div class="flex items-center justify-center gap-1 text-[10px]"><span class="bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">${window.App.UI.escapeText(w1)}</span><i class="fa-solid fa-arrow-right text-blue-500"></i><span class="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded">${window.App.UI.escapeText(w2)}</span></div>`;
                     amountClass = 'text-blue-500';
                 }
 
                 let receiptIcon = '';
                 if (t.receipt_path) {
-                    // High Fix: Secure Signed URL instead of getPublicUrl
-                    const { data } = await App.supabase.storage.from('receipts').createSignedUrl(t.receipt_path, 3600);
+                    const { data } = await window.App.supabase.storage.from('receipts').createSignedUrl(t.receipt_path, 3600);
                     if (data?.signedUrl) {
                         receiptIcon = `<a href="${data.signedUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-600" title="রসিদ দেখুন"><i class="fa-solid fa-paperclip"></i></a>`;
                     }
@@ -263,10 +267,10 @@ App.UI = {
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors';
                 tr.innerHTML = `
-                    <td class="p-4 text-xs whitespace-nowrap">${App.UI.formatDate(t.date)}</td>
-                    <td class="p-4"><div class="flex items-center gap-2">${receiptIcon}<div><p class="leading-tight">${t.type !== 'transfer' ? App.UI.escapeText(cat) : 'ট্রান্সফার'}</p>${t.notes ? `<p class="text-[10px] font-black text-slate-400">${App.UI.escapeText(t.notes)}</p>` : ''}</div></div></td>
+                    <td class="p-4 text-xs whitespace-nowrap">${window.App.UI.formatDate(t.date)}</td>
+                    <td class="p-4"><div class="flex items-center gap-2">${receiptIcon}<div><p class="leading-tight">${t.type !== 'transfer' ? window.App.UI.escapeText(cat) : 'ট্রান্সফার'}</p>${t.notes ? `<p class="text-[10px] font-black text-slate-400">${window.App.UI.escapeText(t.notes)}</p>` : ''}</div></div></td>
                     <td class="p-4 text-center">${sourceHTML}</td>
-                    <td class="p-4 text-right whitespace-nowrap ${amountClass}">${amountPrefix}${App.UI.formatMoney(t.amount)}</td>
+                    <td class="p-4 text-right whitespace-nowrap ${amountClass}">${amountPrefix}${window.App.UI.formatMoney(t.amount)}</td>
                     <td class="p-4 text-center space-x-2 no-print">
                         <button class="text-slate-400 hover:text-blue-500 transition-colors edit-txn-btn" data-id="${t.id}" title="এডিট"><i class="fa-solid fa-pen-to-square"></i></button>
                         <button class="text-slate-400 hover:text-rose-500 transition-colors delete-txn-btn" data-id="${t.id}" title="ডিলিট"><i class="fa-solid fa-trash"></i></button>
@@ -282,21 +286,23 @@ App.UI = {
         if(!tbody) return;
         tbody.innerHTML = '';
 
-        if (App.State.meals.length === 0) {
+        if (window.App.State.meals.length === 0) {
             $('mealEmptyState')?.classList.remove('hidden');
-            $('statBreakfast').textContent = '0'; $('statLunch').textContent = '0'; $('statDinner').textContent = '0';
+            if($('statBreakfast')) $('statBreakfast').textContent = '0';
+            if($('statLunch')) $('statLunch').textContent = '0';
+            if($('statDinner')) $('statDinner').textContent = '0';
         } else {
             $('mealEmptyState')?.classList.add('hidden');
             let bTotal = 0, lTotal = 0, dTotal = 0;
             
-            App.State.meals.forEach(m => {
+            window.App.State.meals.forEach(m => {
                 bTotal += Number(m.breakfast); lTotal += Number(m.lunch); dTotal += Number(m.dinner);
                 const total = Number(m.breakfast) + Number(m.lunch) + Number(m.dinner);
                 
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors';
                 tr.innerHTML = `
-                    <td class="p-4 text-xs font-black text-left whitespace-nowrap">${App.UI.formatDate(m.date)}</td>
+                    <td class="p-4 text-xs font-black text-left whitespace-nowrap">${window.App.UI.formatDate(m.date)}</td>
                     <td class="p-4 text-emerald-600 dark:text-emerald-400">${m.breakfast}</td>
                     <td class="p-4 text-blue-600 dark:text-blue-400">${m.lunch}</td>
                     <td class="p-4 text-indigo-600 dark:text-indigo-400">${m.dinner}</td>
@@ -309,9 +315,9 @@ App.UI = {
                 tbody.appendChild(tr);
             });
 
-            $('statBreakfast').textContent = bTotal;
-            $('statLunch').textContent = lTotal;
-            $('statDinner').textContent = dTotal;
+            if($('statBreakfast')) $('statBreakfast').textContent = bTotal;
+            if($('statLunch')) $('statLunch').textContent = lTotal;
+            if($('statDinner')) $('statDinner').textContent = dTotal;
         }
     },
 
@@ -319,32 +325,37 @@ App.UI = {
         const wContainer = $('walletCardsContainer');
         if(wContainer) {
             wContainer.innerHTML = '';
-            App.State.wallets.forEach(w => {
+            window.App.State.wallets.forEach(w => {
                 const div = document.createElement('div');
                 div.className = 'glass-panel p-4 rounded-xl flex flex-col justify-between';
-                div.innerHTML = `<span class="text-[10px] font-black uppercase text-slate-500 mb-2 truncate">${App.UI.escapeText(w.name)}</span><h4 class="text-sm font-black text-slate-800 dark:text-white truncate">${App.UI.formatMoney(w.balance)}</h4>`;
+                div.innerHTML = `<span class="text-[10px] font-black uppercase text-slate-500 mb-2 truncate">${window.App.UI.escapeText(w.name)}</span><h4 class="text-sm font-black text-slate-800 dark:text-white truncate">${window.App.UI.formatMoney(w.balance)}</h4>`;
                 wContainer.appendChild(div);
             });
         }
 
-        const budget = Number(App.State.settings.monthly_budget);
+        const budget = Number(window.App.State.settings.monthly_budget);
         if($('budgetInput')) $('budgetInput').value = budget > 0 ? budget : '';
         if (budget > 0) {
-            const exp = App.State.kpi.expense;
+            const exp = window.App.State.kpi.expense;
             const pct = Math.min(100, Math.round((exp / budget) * 100));
-            $('budgetPercentText').textContent = `${pct}% (${App.UI.formatMoney(exp)} / ${App.UI.formatMoney(budget)})`;
-            $('budgetProgressBar').style.width = `${pct}%`;
-            if (pct >= 100) { $('budgetProgressBar').classList.replace('bg-emerald-500', 'bg-rose-500'); $('budgetWarningText').classList.remove('hidden'); } 
-            else { $('budgetProgressBar').classList.replace('bg-rose-500', 'bg-emerald-500'); $('budgetWarningText').classList.add('hidden'); }
+            if($('budgetPercentText')) $('budgetPercentText').textContent = `${pct}% (${window.App.UI.formatMoney(exp)} / ${window.App.UI.formatMoney(budget)})`;
+            if($('budgetProgressBar')) $('budgetProgressBar').style.width = `${pct}%`;
+            if (pct >= 100) { 
+                $('budgetProgressBar')?.classList.replace('bg-emerald-500', 'bg-rose-500'); 
+                $('budgetWarningText')?.classList.remove('hidden'); 
+            } else { 
+                $('budgetProgressBar')?.classList.replace('bg-rose-500', 'bg-emerald-500'); 
+                $('budgetWarningText')?.classList.add('hidden'); 
+            }
         }
 
-        const savingsTarget = Number(App.State.settings.savings_goal);
+        const savingsTarget = Number(window.App.State.settings.savings_goal);
         if($('savingsGoalInput')) $('savingsGoalInput').value = savingsTarget > 0 ? savingsTarget : '';
         if (savingsTarget > 0) {
-            const sav = App.State.kpi.savings;
+            const sav = window.App.State.kpi.savings;
             const pct = sav > 0 ? Math.min(100, Math.round((sav / savingsTarget) * 100)) : 0;
-            $('savingsPercentText').textContent = `${pct}% (${App.UI.formatMoney(sav)} / ${App.UI.formatMoney(savingsTarget)})`;
-            $('savingsProgressBar').style.width = `${pct}%`;
+            if($('savingsPercentText')) $('savingsPercentText').textContent = `${pct}% (${window.App.UI.formatMoney(sav)} / ${window.App.UI.formatMoney(savingsTarget)})`;
+            if($('savingsProgressBar')) $('savingsProgressBar').style.width = `${pct}%`;
         }
     },
 
@@ -352,23 +363,22 @@ App.UI = {
         const catContainer = $('settingsCategoryList');
         if(catContainer) {
             catContainer.innerHTML = '';
-            App.State.categories.forEach(c => {
+            window.App.State.categories.forEach(c => {
                 const div = document.createElement('div');
                 const typeColor = c.type === 'income' ? 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30' : 'text-rose-500 bg-rose-100 dark:bg-rose-900/30';
                 const bazarBadge = c.is_bazar ? '<i class="fa-solid fa-basket-shopping text-[10px] ml-1 text-amber-500" title="বাজার খাত"></i>' : '';
                 div.className = `flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border border-transparent hover:border-rose-300 transition-colors ${typeColor}`;
-                div.innerHTML = `<span>${App.UI.escapeText(c.name)}${bazarBadge}</span><button type="button" class="delete-cat-btn ml-1 text-rose-500 hover:text-rose-700 p-1" data-id="${c.id}" title="ডিলিট"><i class="fa-solid fa-xmark"></i></button>`;
+                div.innerHTML = `<span>${window.App.UI.escapeText(c.name)}${bazarBadge}</span><button type="button" class="delete-cat-btn ml-1 text-rose-500 hover:text-rose-700 p-1" data-id="${c.id}" title="ডিলিট"><i class="fa-solid fa-xmark"></i></button>`;
                 catContainer.appendChild(div);
             });
         }
 
-        // Fix: Prevent input wipe on refresh by maintaining values
         const wOpenList = $('walletOpeningList');
         if(wOpenList && wOpenList.children.length === 0) {
-            App.State.wallets.forEach(w => {
+            window.App.State.wallets.forEach(w => {
                 const div = document.createElement('div');
                 div.className = 'flex items-center justify-between gap-3 p-3 glass-panel rounded-xl';
-                div.innerHTML = `<span class="text-xs font-bold w-24 truncate">${App.UI.escapeText(w.name)}</span><input type="number" step="any" inputmode="decimal" class="wallet-opening-input flex-1 bg-transparent outline-none text-right font-black text-sm" data-id="${w.wallet_id}" value="${w.opening_balance}"><span class="text-xs font-black text-slate-400">৳</span>`;
+                div.innerHTML = `<span class="text-xs font-bold w-24 truncate">${window.App.UI.escapeText(w.name)}</span><input type="number" step="any" inputmode="decimal" class="wallet-opening-input flex-1 bg-transparent outline-none text-right font-black text-sm" data-id="${w.wallet_id}" value="${w.opening_balance}"><span class="text-xs font-black text-slate-400">৳</span>`;
                 wOpenList.appendChild(div);
             });
         }
@@ -376,15 +386,18 @@ App.UI = {
 
     openEntryModal: () => {
         $('entryForm')?.reset();
-        if (!$('entryDate').value) $('entryDate').value = App.UI.getLocalDateStr();
+        if (!$('entryDate').value) $('entryDate').value = window.App.UI.getLocalDateStr();
         
         const ev = new Event('change');
-        document.querySelector('input[name="entryTypeRadio"][value="expense"]').checked = true;
-        document.querySelector('input[name="entryTypeRadio"][value="expense"]').dispatchEvent(ev);
+        const expRadio = document.querySelector('input[name="entryTypeRadio"][value="expense"]');
+        if(expRadio) {
+            expRadio.checked = true;
+            expRadio.dispatchEvent(ev);
+        }
         
-        $('entryReceiptLabel').textContent = 'রসিদ ছবি আপলোড (সর্বোচ্চ ২MB)';
-        $('entryModal').classList.remove('hidden');
-        App.UI.populateDropdowns();
+        if($('entryReceiptLabel')) $('entryReceiptLabel').textContent = 'রসিদ ছবি আপলোড (সর্বোচ্চ ২MB)';
+        $('entryModal')?.classList.remove('hidden');
+        window.App.UI.populateDropdowns();
     },
 
     closeEntryModal: () => $('entryModal')?.classList.add('hidden'),
@@ -392,120 +405,119 @@ App.UI = {
 
     openEditModal: (id, type) => {
         $('editForm')?.reset();
-        $('editId').value = id;
-        $('editType').value = type;
-        $('editOriginalReceipt').value = '';
+        if($('editId')) $('editId').value = id;
+        if($('editType')) $('editType').value = type;
+        if($('editOriginalReceipt')) $('editOriginalReceipt').value = '';
 
         if (type === 'txn') {
-            const txn = App.State.transactions.find(t => t.id === id);
+            const txn = window.App.State.transactions.find(t => t.id === id);
             if (!txn) return;
 
-            $('editTxnFields').classList.remove('hidden');
-            $('editMealFields').classList.add('hidden');
-            $('editDate').value = txn.date;
-            $('editAmount').value = txn.amount;
-            $('editNotes').value = txn.notes || '';
+            $('editTxnFields')?.classList.remove('hidden');
+            $('editMealFields')?.classList.add('hidden');
+            if($('editDate')) $('editDate').value = txn.date;
+            if($('editAmount')) $('editAmount').value = txn.amount;
+            if($('editNotes')) $('editNotes').value = txn.notes || '';
             
             if (txn.receipt_path) {
-                $('editOriginalReceipt').value = txn.receipt_path;
-                $('editReceiptLabel').textContent = 'আগের রসিদ আছে। নতুন দিলে পরিবর্তন হবে।';
+                if($('editOriginalReceipt')) $('editOriginalReceipt').value = txn.receipt_path;
+                if($('editReceiptLabel')) $('editReceiptLabel').textContent = 'আগের রসিদ আছে। নতুন দিলে পরিবর্তন হবে।';
             } else {
-                $('editReceiptLabel').textContent = 'নতুন রসিদ ছবি আপলোড (ঐচ্ছিক)';
+                if($('editReceiptLabel')) $('editReceiptLabel').textContent = 'নতুন রসিদ ছবি আপলোড (ঐচ্ছিক)';
             }
 
-            // Fix Edit Dropdown Mapping Bug
             const editCatSelect = $('editCategory');
-            const cats = App.State.categories.filter(c => c.type === (txn.type === 'transfer' ? 'expense' : txn.type));
-            editCatSelect.innerHTML = '';
-            cats.forEach(c => editCatSelect.add(new Option(c.name, c.id)));
+            const cats = window.App.State.categories.filter(c => c.type === (txn.type === 'transfer' ? 'expense' : txn.type));
+            if(editCatSelect) {
+                editCatSelect.innerHTML = '';
+                cats.forEach(c => editCatSelect.add(new Option(c.name, c.id)));
+            }
 
             const editWalletSelect = $('editWallet');
             const editToWalletSelect = $('editToWallet');
-            editWalletSelect.innerHTML = ''; editToWalletSelect.innerHTML = '';
-            App.State.wallets.forEach(w => {
-                const label = `${w.name} (${App.UI.formatMoney(w.balance)})`;
-                editWalletSelect.add(new Option(label, w.wallet_id));
-                editToWalletSelect.add(new Option(label, w.wallet_id));
+            if(editWalletSelect) editWalletSelect.innerHTML = '';
+            if(editToWalletSelect) editToWalletSelect.innerHTML = '';
+
+            window.App.State.wallets.forEach(w => {
+                const label = `${w.name} (${window.App.UI.formatMoney(w.balance)})`;
+                editWalletSelect?.add(new Option(label, w.wallet_id));
+                editToWalletSelect?.add(new Option(label, w.wallet_id));
             });
 
             if (txn.type === 'transfer') {
-                $('editWalletCategoryRow').classList.replace('grid-cols-2', 'grid-cols-1');
-                $('editCategoryContainer').classList.add('hidden');
-                $('editTransferToContainer').classList.remove('hidden');
-                $('editWallet').value = txn.wallet_id;
-                $('editToWallet').value = txn.to_wallet_id;
+                $('editWalletCategoryRow')?.classList.replace('grid-cols-2', 'grid-cols-1');
+                $('editCategoryContainer')?.classList.add('hidden');
+                $('editTransferToContainer')?.classList.remove('hidden');
+                if($('editWallet')) $('editWallet').value = txn.wallet_id;
+                if($('editToWallet')) $('editToWallet').value = txn.to_wallet_id;
             } else {
-                $('editWalletCategoryRow').classList.replace('grid-cols-1', 'grid-cols-2');
-                $('editCategoryContainer').classList.remove('hidden');
-                $('editTransferToContainer').classList.add('hidden');
+                $('editWalletCategoryRow')?.classList.replace('grid-cols-1', 'grid-cols-2');
+                $('editCategoryContainer')?.classList.remove('hidden');
+                $('editTransferToContainer')?.classList.add('hidden');
                 
-                if (txn.category_id && !App.State.categories.find(c => c.id === txn.category_id)) {
-                    $('editCategory').add(new Option('Deleted Category', txn.category_id));
+                if (txn.category_id && !window.App.State.categories.find(c => c.id === txn.category_id)) {
+                    editCatSelect?.add(new Option('Deleted Category', txn.category_id));
                 }
-                $('editCategory').value = txn.category_id;
-                $('editWallet').value = txn.wallet_id;
+                if($('editCategory')) $('editCategory').value = txn.category_id;
+                if($('editWallet')) $('editWallet').value = txn.wallet_id;
             }
         } else if (type === 'meal') {
-            const meal = App.State.meals.find(m => m.id === id);
+            const meal = window.App.State.meals.find(m => m.id === id);
             if (!meal) return;
-            $('editTxnFields').classList.add('hidden');
-            $('editMealFields').classList.remove('hidden');
-            $('editDate').value = meal.date;
-            $('editMealB').value = meal.breakfast;
-            $('editMealL').value = meal.lunch;
-            $('editMealD').value = meal.dinner;
+            $('editTxnFields')?.classList.add('hidden');
+            $('editMealFields')?.classList.remove('hidden');
+            if($('editDate')) $('editDate').value = meal.date;
+            if($('editMealB')) $('editMealB').value = meal.breakfast;
+            if($('editMealL')) $('editMealL').value = meal.lunch;
+            if($('editMealD')) $('editMealD').value = meal.dinner;
         }
 
-        $('editModal').classList.remove('hidden');
+        $('editModal')?.classList.remove('hidden');
     }
 };
 
-// --- GLOBAL EVENT DELEGATION (Removed Inline Onclicks) ---
+// --- GLOBAL EVENT DELEGATION ---
 document.addEventListener('click', async (e) => {
-    // Delete Transaction
     if (e.target.closest('.delete-txn-btn')) {
         const id = e.target.closest('.delete-txn-btn').dataset.id;
         if (confirm('আপনি কি এই ট্রানজেকশনটি ডিলিট করতে চান?')) {
             try {
-                const t = App.State.transactions.find(x => x.id === id);
-                await App.Data.deleteTransaction(id, t?.receipt_path);
-                App.UI.showToast('ট্রানজেকশন ডিলিট করা হয়েছে');
-            } catch (err) { App.UI.showToast(err.message, 'error'); }
+                const t = window.App.State.transactions.find(x => x.id === id);
+                await window.App.Data.deleteTransaction(id, t?.receipt_path);
+                window.App.UI.showToast('ট্রানজেকশন ডিলিট করা হয়েছে');
+            } catch (err) { window.App.UI.showToast(err.message, 'error'); }
         }
     }
-    // Delete Meal
     if (e.target.closest('.delete-meal-btn')) {
         const id = e.target.closest('.delete-meal-btn').dataset.id;
         if (confirm('আপনি কি এই মিল এন্ট্রি ডিলিট করতে চান?')) {
-            try { await App.Data.deleteMeal(id); App.UI.showToast('মিল এন্ট্রি ডিলিট করা হয়েছে'); } 
-            catch (err) { App.UI.showToast(err.message, 'error'); }
+            try { await window.App.Data.deleteMeal(id); window.App.UI.showToast('মিল এন্ট্রি ডিলিট করা হয়েছে'); } 
+            catch (err) { window.App.UI.showToast(err.message, 'error'); }
         }
     }
-    // Delete Category
     if (e.target.closest('.delete-cat-btn')) {
         const id = e.target.closest('.delete-cat-btn').dataset.id;
         if (confirm('আপনি কি এই ক্যাটাগরিটি ডিলিট করতে চান?')) {
             try { 
-                await App.Data.deleteCategory(id); 
-                App.UI.showToast('ক্যাটাগরি ডিলিট করা হয়েছে');
-                App.UI.populateDropdowns(); App.UI.renderSettings(); 
+                await window.App.Data.deleteCategory(id); 
+                window.App.UI.showToast('ক্যাটাগরি ডিলিট করা হয়েছে');
+                window.App.UI.populateDropdowns(); 
+                window.App.UI.renderSettings(); 
             } 
-            catch (err) { App.UI.showToast(err.message, 'error'); }
+            catch (err) { window.App.UI.showToast(err.message, 'error'); }
         }
     }
-    // Open Edit Modals
     if (e.target.closest('.edit-txn-btn')) {
-        App.UI.openEditModal(e.target.closest('.edit-txn-btn').dataset.id, 'txn');
+        window.App.UI.openEditModal(e.target.closest('.edit-txn-btn').dataset.id, 'txn');
     }
     if (e.target.closest('.edit-meal-btn')) {
-        App.UI.openEditModal(e.target.closest('.edit-meal-btn').dataset.id, 'meal');
+        window.App.UI.openEditModal(e.target.closest('.edit-meal-btn').dataset.id, 'meal');
     }
 });
 
-// Modal Escape key support
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        App.UI.closeEntryModal();
-        App.UI.closeEditModal();
+        window.App.UI.closeEntryModal();
+        window.App.UI.closeEditModal();
     }
 });
