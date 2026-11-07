@@ -70,62 +70,51 @@ async function checkUserSession() {
     }, 800);
 }
 
-
-
-    // Password visibility toggle
-    const togglePwdBtn = document.getElementById('authTogglePasswordBtn');
-    if (togglePwdBtn) {
-        togglePwdBtn.addEventListener('click', () => {
-            const pwdInput = document.getElementById('authPassword');
-            if (pwdInput.type === 'password') {
-                pwdInput.type = 'text';
-                togglePwdBtn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
-            } else {
-                pwdInput.type = 'password';
-                togglePwdBtn.innerHTML = '<i class="fa-solid fa-eye"></i>';
-            }
-        });
-    }
-
-    // Logout button handler
-    const logoutBtn = document.getElementById('menuLogoutBtn') || document.getElementById('pendingLogoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            await window.App.Auth.signOut();
-            window.location.reload();
-        });
-    }
-}// Setup global event listeners for UI forms
+// Setup global event listeners for UI forms
 function setupEventListeners() {
+    const processAuth = async () => {
+        const identifierInput = document.getElementById('authUsername');
+        const passwordInput = document.getElementById('authPassword');
+        const isSignUp = document.getElementById('authTitleText')?.innerText.includes('সাইন আপ') || false;
+
+        const identifier = identifierInput ? identifierInput.value.trim() : '';
+        const password = passwordInput ? passwordInput.value.trim() : '';
+
+        if (!identifier || !password) {
+            alert('দয়া করে ইউজারনেম এবং পাসওয়ার্ড দিন।');
+            return;
+        }
+
+        console.log("Submitting auth for:", identifier);
+        const result = await window.App.Auth.handleAuthSubmit(identifier, password, isSignUp);
+        
+        if (result.success) {
+            if (isSignUp) {
+                alert(result.message);
+                window.location.reload();
+            } else {
+                checkUserSession();
+            }
+        } else {
+            alert('লগইন ব্যর্থ হয়েছে: ' + result.message);
+        }
+    };
+
+    // Form submit event
     const authForm = document.getElementById('authForm');
     if (authForm) {
-        authForm.addEventListener('submit', async (e) => {
+        authForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const identifierInput = document.getElementById('authUsername');
-            const passwordInput = document.getElementById('authPassword');
-            const isSignUp = document.getElementById('authTitleText')?.innerText.includes('সাইন আপ') || false;
+            processAuth();
+        });
+    }
 
-            const identifier = identifierInput ? identifierInput.value.trim() : '';
-            const password = passwordInput ? passwordInput.value.trim() : '';
-
-            if (!identifier || !password) {
-                alert('দয়া করে ইউজারনেম এবং পাসওয়ার্ড দিন।');
-                return;
-            }
-
-            console.log("Submitting auth for:", identifier);
-            const result = await window.App.Auth.handleAuthSubmit(identifier, password, isSignUp);
-            
-            if (result.success) {
-                if (isSignUp) {
-                    alert(result.message);
-                    window.location.reload();
-                } else {
-                    checkUserSession();
-                }
-            } else {
-                alert('লগইন ব্যর্থ হয়েছে: ' + result.message);
-            }
+    // Direct button click event (Bypasses any extension form-blocking)
+    const submitBtn = document.getElementById('authSubmitBtn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            processAuth();
         });
     }
 
@@ -134,17 +123,17 @@ function setupEventListeners() {
     if (toggleBtn) {
         toggleBtn.addEventListener('click', () => {
             const title = document.getElementById('authTitleText');
-            const submitBtn = document.getElementById('authSubmitBtn');
+            const btn = document.getElementById('authSubmitBtn');
             const confirmGroup = document.getElementById('authConfirmGroup');
             
             if (title.innerText.includes('লগইন')) {
                 title.innerText = 'সাইন আপ';
-                submitBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> অ্যাকাউন্ট তৈরি করুন';
+                btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> অ্যাকাউন্ট তৈরি করুন';
                 toggleBtn.innerText = 'লগইন করতে এখানে ক্লিক করুন';
                 if (confirmGroup) confirmGroup.classList.remove('hidden');
             } else {
                 title.innerText = 'লগইন';
-                submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> প্রবেশ করুন';
+                btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> প্রবেশ করুন';
                 toggleBtn.innerText = 'অ্যাকাউন্ট নেই? নতুন তৈরি করুন';
                 if (confirmGroup) confirmGroup.classList.add('hidden');
             }
