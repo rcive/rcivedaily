@@ -1,0 +1,226 @@
+/**
+ * ==========================================
+ * RCIVE DAILY - MAIN STYLESHEET
+ * ==========================================
+ * Note: Since we are using Tailwind CSS via CDN, we cannot use @apply.
+ * This file contains purely custom CSS for animations, glassmorphism,
+ * accessibility, and print overrides.
+ */
+
+/* ==========================================
+   GLOBAL VARIABLES & BASE
+   ========================================== */
+:root {
+    color-scheme: light;
+
+    --glass-bg-light: rgba(255, 255, 255, 0.7);
+    --glass-border-light: rgba(255, 255, 255, 0.5);
+    --glass-shadow-light: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+
+    --glass-bg-dark: rgba(15, 23, 42, 0.6);
+    --glass-border-dark: rgba(255, 255, 255, 0.08);
+    --glass-shadow-dark: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.dark {
+    color-scheme: dark;
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    background-color: #f8fafc;
+}
+
+.dark body {
+    background-color: #020617;
+}
+
+/* ==========================================
+   ACCESSIBILITY & UTILITIES
+   ========================================== */
+*:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* ==========================================
+   OFFLINE BANNER
+   ========================================== */
+#offlineBanner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 120;
+    padding: max(0.5rem, env(safe-area-inset-top)) 1rem 0.5rem;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: white;
+    background: #e11d48;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+}
+
+#offlineBanner.is-visible {
+    transform: translateY(0);
+}
+
+/* ==========================================
+   PREMIUM GLASSMORPHISM (.glass-panel)
+   ========================================== */
+.glass-panel {
+    background: var(--glass-bg-light);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border-light);
+    box-shadow: var(--glass-shadow-light);
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dark .glass-panel {
+    background: var(--glass-bg-dark);
+    border: 1px solid var(--glass-border-dark);
+    box-shadow: var(--glass-shadow-dark);
+}
+
+/* ==========================================
+   ANIMATIONS & MICRO-INTERACTIONS
+   ========================================== */
+
+/* Toast Notification Animation */
+@keyframes slideDown {
+    0% {
+        transform: translateY(-100%) scale(0.9);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+.toast-animate {
+    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Modal Entrance Animation */
+@keyframes fadeZoom {
+    0% {
+        transform: scale(0.95) translateY(10px);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+.modal-animate {
+    animation: fadeZoom 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Skeleton Loading State */
+@keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+}
+
+.skeleton {
+    background: #e2e8f0;
+    background-image: linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 100%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear forwards;
+    border-radius: 0.5rem;
+    color: transparent !important;
+}
+
+.skeleton * {
+    visibility: hidden;
+}
+
+.dark .skeleton {
+    background: #1e293b;
+    background-image: linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 100%);
+}
+
+/* ==========================================
+   MOBILE BOTTOM NAVIGATION & FAB
+   ========================================== */
+/* Keeps the bottom nav clear of iOS safe areas without becoming cramped */
+#bottomNav {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+#mainFab,
+#fabBtn {
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.3s ease;
+}
+#mainFab:active,
+#fabBtn:active {
+    transform: scale(0.95);
+}
+
+/* ==========================================
+   PRINT STYLES (PDF / Export)
+   ========================================== */
+@media print {
+    .no-print,
+    #bottomNav,
+    #fabContainer,
+    #toastContainer,
+    #offlineBanner,
+    #updateBanner,
+    #contextMenu {
+        display: none !important;
+    }
+
+    body {
+        background: white !important;
+        color: black !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .glass-panel {
+        background: white !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        color: black !important;
+        break-inside: avoid;
+    }
+
+    .dark .glass-panel {
+        background: white !important;
+        border: 1px solid #e2e8f0 !important;
+        color: black !important;
+    }
+
+    * {
+        text-shadow: none !important;
+    }
+}
+
+/* ==========================================
+   PREFERS REDUCED MOTION
+   ========================================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

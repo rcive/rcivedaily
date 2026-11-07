@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="bn" class="h-full antialiased scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'system';
+            if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#10b981">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Rcive Daily - Admin Panel</title>
+    
+    <link rel="apple-touch-icon" href="../icons/icon-192.png">
+    <link rel="manifest" href="../manifest.json">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind = {
+            config: {
+                darkMode: 'class',
+                theme: {
+                    extend: {
+                        colors: { brand: { 500: '#10b981', 600: '#059669', 900: '#064e3b' } },
+                        fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] }
+                    }
+                }
+            }
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="text-slate-800 dark:text-slate-100 min-h-full flex flex-col">
+
+    <!-- TOAST CONTAINER -->
+    <div id="toastContainer" aria-live="polite" class="fixed top-6 left-0 right-0 z-[100] flex flex-col items-center pointer-events-none space-y-3 px-4"></div>
+
+    <!-- INITIAL LOADING / CHECKING ACCESS -->
+    <div id="loadingScreen" class="fixed inset-0 z-[99] bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center transition-opacity duration-300">
+        <div class="relative w-16 h-16 mb-4 animate-pulse">
+            <div class="absolute inset-0 rounded-2xl bg-amber-500 blur-xl opacity-50"></div>
+            <div class="relative w-full h-full bg-gradient-to-tr from-amber-500 to-orange-400 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg"><i class="fa-solid fa-shield"></i></div>
+        </div>
+        <h2 class="text-xl font-black">অ্যাডমিন অ্যাক্সেস চেক করা হচ্ছে...</h2>
+    </div>
+
+    <!-- ACCESS DENIED SCREEN -->
+    <div id="accessDeniedScreen" class="fixed inset-0 z-[90] bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-sm w-full p-8 text-center rounded-[2rem] shadow-2xl">
+            <i class="fa-solid fa-ban text-5xl text-rose-500 mb-4"></i>
+            <h2 class="text-2xl font-black mb-2">অ্যাক্সেস ডিনাইড</h2>
+            <p class="text-sm font-bold text-slate-500 mb-6">আপনার এই পেজে প্রবেশ করার অনুমতি নেই।</p>
+            <button type="button" id="returnHomeBtn" class="w-full bg-slate-800 text-white font-black py-3 rounded-xl hover:bg-slate-700 transition-colors">মূল অ্যাপে ফিরে যান</button>
+        </div>
+    </div>
+
+    <!-- MAIN ADMIN DASHBOARD -->
+    <div id="adminApp" class="flex-1 flex flex-col hidden">
+        
+        <!-- HEADER -->
+        <header class="sticky top-0 z-40 glass-panel !rounded-none !border-x-0 !border-t-0 px-4 py-3 flex items-center justify-between shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center shadow-md text-lg"><i class="fa-solid fa-shield"></i></div>
+                <div>
+                    <h1 class="text-sm font-black text-slate-800 dark:text-white leading-tight uppercase tracking-widest">Rcive Admin</h1>
+                    <p id="adminHeaderUsername" class="text-[10px] font-bold text-amber-600 dark:text-amber-400">...</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button type="button" id="themeToggleBtn" aria-label="থিম পরিবর্তন" class="w-10 h-10 rounded-lg glass-panel flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-moon"></i></button>
+                <a href="../index.html" class="w-10 h-10 rounded-lg glass-panel flex items-center justify-center text-slate-500 hover:text-emerald-500 transition-colors" title="অ্যাপে ফিরে যান"><i class="fa-solid fa-arrow-right-from-bracket rotate-180"></i></a>
+                <button type="button" id="adminLogoutBtn" class="w-10 h-10 rounded-lg glass-panel flex items-center justify-center text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors" title="লগআউট"><i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
+            
+            <!-- STATS -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="glass-panel p-5 rounded-2xl flex flex-col">
+                    <span class="text-[10px] font-black uppercase text-slate-500 mb-1">মোট ইউজার</span>
+                    <h3 id="statTotalUsers" class="text-2xl font-black text-blue-500">0</h3>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl flex flex-col">
+                    <span class="text-[10px] font-black uppercase text-slate-500 mb-1">অ্যাপ্রুভড</span>
+                    <h3 id="statApproved" class="text-2xl font-black text-emerald-500">0</h3>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl flex flex-col">
+                    <span class="text-[10px] font-black uppercase text-slate-500 mb-1">পেন্ডিং</span>
+                    <h3 id="statPending" class="text-2xl font-black text-amber-500">0</h3>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl flex flex-col">
+                    <span class="text-[10px] font-black uppercase text-slate-500 mb-1">ব্লকড/বাতিল</span>
+                    <h3 id="statBlocked" class="text-2xl font-black text-rose-500">0</h3>
+                </div>
+            </div>
+
+            <!-- CONTROLS -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-col md:flex-row gap-3">
+                <div class="relative flex-1">
+                    <label for="searchUser" class="sr-only">ইউজার সার্চ</label>
+                    <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="searchUser" placeholder="ইউজারনেম সার্চ করুন..." class="w-full glass-panel pl-11 pr-4 py-2.5 rounded-xl text-sm font-bold outline-none">
+                </div>
+                <label for="filterStatus" class="sr-only">স্ট্যাটাস ফিল্টার</label>
+                <select id="filterStatus" class="glass-panel px-4 py-2.5 rounded-xl text-sm font-bold outline-none cursor-pointer">
+                    <option value="all">সব স্ট্যাটাস</option>
+                    <option value="pending">পেন্ডিং</option>
+                    <option value="approved">অ্যাপ্রুভড</option>
+                    <option value="rejected">বাতিল</option>
+                    <option value="blocked">ব্লকড</option>
+                </select>
+                <button type="button" id="refreshBtn" class="glass-panel px-4 py-2.5 rounded-xl font-bold hover:text-blue-500 transition-colors" title="রিলোড"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+
+            <!-- USERS TABLE -->
+            <div class="glass-panel rounded-[1.5rem] overflow-hidden">
+                <div class="overflow-x-auto hide-scrollbar">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-100/50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-500">
+                            <tr>
+                                <th class="p-4">ইউজারনেম</th>
+                                <th class="p-4 text-center">রোল</th>
+                                <th class="p-4 text-center">স্ট্যাটাস</th>
+                                <th class="p-4 text-center">রেকর্ডস (Txn/Meal)</th>
+                                <th class="p-4 text-right">জয়েনিং ডেট</th>
+                                <th class="p-4 text-center">অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody" class="divide-y divide-slate-200/50 dark:divide-slate-700/50 text-sm font-bold">
+                            <!-- JS INJECTED -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="userEmptyState" class="hidden py-10 text-center text-slate-400">
+                    <i class="fa-solid fa-users-slash text-4xl mb-3 opacity-50"></i>
+                    <p class="font-bold text-sm">কোনো ইউজার পাওয়া যায়নি</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ACTION CONFIRMATION MODAL -->
+    <div id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle" class="fixed inset-0 z-[60] flex items-center justify-center p-4 hidden">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" id="confirmModalBackdrop"></div>
+        <div class="glass-panel w-full max-w-sm rounded-[2rem] p-6 space-y-4 relative z-10 shadow-2xl text-center">
+            <div id="confirmModalIcon" class="w-16 h-16 mx-auto rounded-full flex items-center justify-center text-3xl mb-2"></div>
+            <h3 id="confirmModalTitle" class="text-xl font-black">নিশ্চিত করুন</h3>
+            <p id="confirmModalText" class="text-sm font-bold text-slate-500">আপনি কি এই কাজটি করতে চান?</p>
+            <div class="flex gap-3 mt-6">
+                <button type="button" id="cancelConfirmBtn" class="flex-1 glass-panel py-3 rounded-xl font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">বাতিল</button>
+                <button type="button" id="executeConfirmBtn" class="flex-1 py-3 rounded-xl font-black text-white shadow-lg transition-transform active:scale-95">নিশ্চিত</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../config.js"></script>
+    <script src="./admin.js"></script>
+</body>
+</html>

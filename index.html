@@ -1,866 +1,571 @@
 <!DOCTYPE html>
-<html lang="bn" class="h-full">
+<html lang="bn" class="h-full antialiased scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rcive Daily (rcivedaily.com) - Cloud Finance & Solo Meal Manager</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- html2pdf for Professional PDF Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Theme Script (Execute before first paint to prevent flash of incorrect theme) -->
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: { 50: '#f0fdf4', 500: '#10b981', 600: '#059669', 700: '#047857', dark: '#090d16' }
-                    },
-                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] }
+        (function() {
+            var theme = localStorage.getItem('theme') || 'system';
+            if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#10b981">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Rcive Daily - Premium Finance</title>
+    
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- Preconnect & Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS Config -->
+    <script>
+        tailwind = {
+            config: {
+                darkMode: 'class',
+                theme: {
+                    extend: {
+                        colors: { brand: { 500: '#10b981', 600: '#059669', 900: '#064e3b' } },
+                        fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                        animation: { 'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite' }
+                    }
                 }
             }
-        }
+        };
     </script>
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        @media print {
-            .no-print { display: none !important; }
-        }
-    </style>
-</head>
-<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-200">
+    <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- LOGIN & REGISTER MODAL -->
-    <div id="authScreen" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6">
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="./style.css">
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <noscript><style>#splashScreen{display:none !important}</style></noscript>
+</head>
+<body class="text-slate-800 dark:text-slate-100 min-h-full flex flex-col">
+    <noscript><div class="p-8 text-center font-bold">দয়া করে জাভাস্ক্রিপ্ট চালু করুন। Rcive Daily অ্যাপটি ব্যবহার করতে জাভাস্ক্রিপ্ট প্রয়োজন।</div></noscript>
+
+    <!-- CONFIG ERROR SCREEN -->
+    <div id="configErrorScreen" class="fixed inset-0 z-[110] bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 hidden">
+        <i class="fa-solid fa-triangle-exclamation text-5xl text-rose-500 mb-4"></i>
+        <h2 class="text-xl font-black text-center text-slate-800 dark:text-white">Supabase কনফিগার করা হয়নি, config.js চেক করুন</h2>
+    </div>
+
+    <!-- UPDATE BANNER -->
+    <div id="updateBanner" class="fixed bottom-4 left-4 right-4 z-[120] glass-panel p-4 flex items-center justify-between rounded-xl hidden shadow-2xl border-emerald-500/50 border">
+        <span class="font-bold text-sm text-slate-800 dark:text-white">নতুন ভার্সন পাওয়া গেছে</span>
+        <button type="button" id="updateReloadBtn" class="bg-emerald-500 text-white px-4 py-2 rounded-lg font-black text-xs hover:bg-emerald-600 transition-colors">রিলোড করুন</button>
+    </div>
+
+    <!-- OFFLINE BANNER -->
+    <div id="offlineBanner">ইন্টারনেট সংযোগ নেই। আপনি অফলাইনে আছেন। ডাটা সিংক বন্ধ আছে।</div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toastContainer" aria-live="polite" class="fixed top-6 left-0 right-0 z-[100] flex flex-col items-center pointer-events-none space-y-3 px-4"></div>
+
+    <!-- SPLASH SCREEN -->
+    <div id="splashScreen" class="fixed inset-0 z-[99] bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="relative w-20 h-20 mb-4">
+            <div class="absolute inset-0 rounded-2xl bg-emerald-500 blur-xl opacity-50 animate-pulse"></div>
+            <div class="relative w-full h-full bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center text-white text-4xl shadow-lg"><i class="fa-solid fa-vault"></i></div>
+        </div>
+        <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Rcive<span class="text-emerald-500">Daily</span></h1>
+    </div>
+
+    <!-- AUTH SCREEN -->
+    <div id="authScreen" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-md rounded-[2rem] p-8 space-y-6 shadow-2xl">
             <div class="text-center space-y-2">
-                <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 text-2xl font-bold mb-1">
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                </div>
-                <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white">Rcive Daily</h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400">rcivedaily.com - Cloud Sync & Solo Meal Manager</p>
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white text-3xl shadow-lg mb-2"><i class="fa-solid fa-fingerprint"></i></div>
+                <h2 class="text-3xl font-black tracking-tight" id="authTitleText">লগইন</h2>
+                <p class="text-sm font-bold text-slate-500 uppercase tracking-widest">Rcive Premium Secure Auth</p>
             </div>
             
-            <form onsubmit="handleCloudLogin(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">ইউজার আইডি / ইমেইল</label>
-                    <input type="text" id="cloudUser" required placeholder="যেমন: rifat_hosen" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            <form id="authForm" class="space-y-4">
+                <div class="relative">
+                    <label for="authUsername" class="sr-only">ইউজার আইডি</label>
+                    <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="authUsername" pattern="[a-z0-9_]{3,20}" autocapitalize="none" spellcheck="false" required autocomplete="username" placeholder="ইউজার আইডি (৩-২০ অক্ষর)" class="w-full glass-panel pl-11 pr-4 py-3.5 rounded-xl text-sm font-bold outline-none transition-shadow">
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">সিক্রেট পিন</label>
-                    <input type="password" id="cloudPass" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                <div class="relative">
+                    <label for="authPassword" class="sr-only">পাসওয়ার্ড</label>
+                    <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="password" id="authPassword" minlength="8" maxlength="72" required autocomplete="current-password" placeholder="পাসওয়ার্ড (নূন্যতম ৮ অক্ষর)" class="w-full glass-panel pl-11 pr-11 py-3.5 rounded-xl text-sm font-bold outline-none transition-shadow">
+                    <button type="button" id="authTogglePasswordBtn" aria-label="পাসওয়ার্ড দেখুন" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-500"><i class="fa-solid fa-eye"></i></button>
                 </div>
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-2xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-right-to-bracket"></i> ক্লাউডে প্রবেশ করুন
-                </button>
+                <div id="authConfirmGroup" class="relative hidden">
+                    <label for="authPasswordConfirm" class="sr-only">পাসওয়ার্ড কনফার্ম করুন</label>
+                    <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="password" id="authPasswordConfirm" autocomplete="new-password" placeholder="পুনরায় পাসওয়ার্ড দিন" class="w-full glass-panel pl-11 pr-4 py-3.5 rounded-xl text-sm font-bold outline-none transition-shadow">
+                </div>
+                <button type="submit" id="authSubmitBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-3.5 rounded-xl shadow-lg transition-transform active:scale-95 flex justify-center items-center gap-2"><i class="fa-solid fa-arrow-right-to-bracket"></i> প্রবেশ করুন</button>
             </form>
-            <div class="text-center text-[11px] text-slate-400">
-                আপনার ডেটা ক্লাউডে সুরক্ষিত থাকবে। অ্যাডমিন প্যানেল থেকে সমস্ত ইউজারের রেকর্ড ট্র্যাক করা যাবে।
+            <div class="text-center pt-2">
+                <button type="button" id="authToggleBtn" class="text-sm font-bold text-slate-500 hover:text-emerald-500 transition-colors">অ্যাকাউন্ট নেই? নতুন তৈরি করুন</button>
             </div>
         </div>
     </div>
 
-    <!-- MAIN APP WRAPPER -->
-    <div id="mainApp" class="flex-1 flex flex-col pb-20 md:pb-0">
-        <!-- Top Sticky Header -->
-        <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/85 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm no-print">
-            <div class="flex items-center space-x-2">
-                <button onclick="goBack()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition">
-                    <i class="fa-solid fa-arrow-left"></i>
-                </button>
-                <button onclick="switchTab('dashboard')" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition">
-                    <i class="fa-solid fa-house"></i>
-                </button>
+    <!-- PENDING APPROVAL SCREEN -->
+    <div id="pendingScreen" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-sm rounded-[2rem] p-8 text-center space-y-4 shadow-2xl">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 text-amber-500 text-3xl mb-2"><i class="fa-solid fa-hourglass-half"></i></div>
+            <h2 id="pendingTitle" class="text-2xl font-black">অপেক্ষায় আছে</h2>
+            <p id="pendingMessage" class="text-sm font-bold text-slate-500">আপনার অ্যাকাউন্টটি বর্তমানে পেন্ডিং অবস্থায় আছে। অ্যাডমিন অ্যাপ্রুভ করলে আপনি অ্যাপ ব্যবহার করতে পারবেন।</p>
+            <button type="button" id="pendingLogoutBtn" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-700 transition-colors mt-4">লগআউট করুন</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP SHELL -->
+    <div id="mainApp" class="flex-1 flex flex-col pb-24 md:pb-0 hidden">
+        
+        <!-- HEADER -->
+        <header class="sticky top-0 z-40 glass-panel !rounded-none !border-x-0 !border-t-0 px-4 py-3 flex items-center justify-between no-print">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-md"><i class="fa-solid fa-user"></i></div>
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-400">স্বাগতম</p>
+                    <p id="headerUsername" class="text-sm font-black text-slate-800 dark:text-white leading-tight">...</p>
+                </div>
             </div>
             
-            <div class="text-center">
-                <span class="text-xs font-bold tracking-widest text-emerald-600 dark:text-emerald-400 uppercase">rcivedaily.com</span>
-                <h1 class="text-sm font-extrabold text-slate-900 dark:text-white" id="userGreeting">Cloud Sync Active</h1>
+            <nav id="desktopNav" aria-label="প্রধান মেনু" class="hidden md:flex items-center gap-1 text-sm font-bold">
+                <button type="button" class="nav-btn px-3 py-2 rounded-lg text-slate-400 hover:text-emerald-500" data-target="dashboard">ওভারভিউ</button>
+                <button type="button" class="nav-btn px-3 py-2 rounded-lg text-slate-400 hover:text-emerald-500" data-target="ledger">লেজার</button>
+                <button type="button" class="nav-btn px-3 py-2 rounded-lg text-slate-400 hover:text-emerald-500" data-target="meals">মিল</button>
+                <button type="button" class="nav-btn px-3 py-2 rounded-lg text-slate-400 hover:text-emerald-500" data-target="planning">প্ল্যান</button>
+                <button type="button" class="nav-btn px-3 py-2 rounded-lg text-slate-400 hover:text-emerald-500" data-target="settings">সেটিংস</button>
+            </nav>
+
+            <div class="flex items-center gap-2">
+                <div class="glass-panel px-3 py-1.5 rounded-lg flex items-center gap-2">
+                    <label for="monthSelector" class="sr-only">মাস বেছে নিন</label>
+                    <i class="fa-solid fa-calendar-days text-emerald-500 text-sm"></i>
+                    <select id="monthSelector" class="bg-transparent text-xs font-bold outline-none cursor-pointer border-none text-slate-700 dark:text-slate-200"></select>
+                </div>
+                <button type="button" id="headerMenuBtn" aria-label="মেনু খুলুন" class="w-10 h-10 rounded-lg glass-panel flex items-center justify-center hover:text-emerald-500 transition-colors"><i class="fa-solid fa-ellipsis-vertical"></i></button>
             </div>
 
-            <div class="flex items-center space-x-2">
-                <button onclick="generatePDFReport()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition" title="Download PDF Report">
-                    <i class="fa-solid fa-file-pdf"></i>
-                </button>
-                <button onclick="toggleDarkMode()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 transition">
-                    <i id="themeIcon" class="fa-solid fa-moon"></i>
-                </button>
-                <button onclick="logoutCloud()" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition" title="Logout">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                </button>
+            <!-- Context Menu -->
+            <div id="contextMenu" class="hidden absolute top-14 right-4 w-56 glass-panel rounded-2xl overflow-hidden z-50 shadow-2xl">
+                <div class="p-2 space-y-1 text-sm font-bold">
+                    <a id="menuAdminLink" href="./admin/" class="hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-amber-500"><i class="fa-solid fa-shield w-5"></i> অ্যাডমিন প্যানেল</a>
+                    <button type="button" id="menuPdfBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><i class="fa-solid fa-file-pdf text-rose-500 w-5"></i> পিডিএফ ডাউনলোড</button>
+                    <button type="button" id="menuExcelBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><i class="fa-solid fa-file-excel text-emerald-500 w-5"></i> এক্সেল এক্সপোর্ট</button>
+                    <button type="button" id="menuCsvBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><i class="fa-solid fa-file-csv text-blue-500 w-5"></i> CSV এক্সপোর্ট</button>
+                    <hr class="border-slate-200 dark:border-slate-700 my-1 mx-2">
+                    <button type="button" id="menuLogoutBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"><i class="fa-solid fa-power-off w-5"></i> লগআউট</button>
+                </div>
             </div>
         </header>
 
-        <!-- Printable Report PDF Container Area -->
+        <!-- MAIN CONTENT AREA -->
         <main id="pdfExportArea" class="flex-1 max-w-5xl w-full mx-auto px-4 py-6 space-y-6">
-
-            <!-- 1. DASHBOARD TAB -->
-            <section id="tab-dashboard" class="space-y-6 tab-content">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">মাসিক আর্থিক ড্যাশবোর্ড</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">রিয়েল-টাইম আয়, খরচ ও মিল রেট ট্র্যাকিং</p>
-                    </div>
-                </div>
-
-                <!-- KPI Cards -->
+            
+            <!-- TAB: DASHBOARD -->
+            <section id="tab-dashboard" class="tab-content space-y-6">
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">মোট আয় (Income)</span>
-                        <h3 id="kpi-income" class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">৳ 0.00</h3>
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col">
+                        <span class="text-[10px] font-black uppercase text-slate-500 mb-1">মাসিক আয়</span>
+                        <h3 id="kpiIncome" class="text-xl md:text-2xl font-black text-emerald-500">৳ 0</h3>
                     </div>
-                    <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">মোট খরচ (Expense)</span>
-                        <h3 id="kpi-expense" class="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">৳ 0.00</h3>
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col">
+                        <span class="text-[10px] font-black uppercase text-slate-500 mb-1">মাসিক খরচ</span>
+                        <h3 id="kpiExpense" class="text-xl md:text-2xl font-black text-rose-500">৳ 0</h3>
                     </div>
-                    <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">মিলের বাজার</span>
-                        <h3 id="kpi-market" class="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">৳ 0.00</h3>
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col">
+                        <span class="text-[10px] font-black uppercase text-slate-500 mb-1">মোট ব্যালেন্স</span>
+                        <h3 id="kpiBalance" class="text-xl md:text-2xl font-black text-slate-800 dark:text-white">৳ 0</h3>
                     </div>
-                    <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">হাতে জমা (Balance)</span>
-                        <h3 id="kpi-balance" class="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">৳ 0.00</h3>
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col">
+                        <span class="text-[10px] font-black uppercase text-slate-500 mb-1">এই মাসের সঞ্চয়</span>
+                        <h3 id="kpiSavings" class="text-xl md:text-2xl font-black text-amber-500">৳ 0</h3>
                     </div>
                 </div>
 
-                <!-- Solo Meal Highlight & Charts -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div class="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-6 rounded-3xl shadow-lg flex flex-col justify-between">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-gradient-to-br from-slate-900 to-emerald-950 text-white p-6 rounded-[2rem] shadow-xl flex flex-col justify-between">
                         <div>
-                            <span class="text-[10px] uppercase tracking-wider font-extrabold bg-white/20 px-3 py-1 rounded-full">একলা রান্নার মিল রেট</span>
-                            <h4 class="text-3xl font-black mt-4" id="dash-meal-rate">৳ 0.00</h4>
-                            <p class="text-xs text-emerald-100 mt-1">প্রতি বেলা রান্নার গড় খরচ</p>
+                            <span class="text-[10px] uppercase font-black bg-white/10 px-3 py-1.5 rounded-full inline-flex items-center gap-2"><i class="fa-solid fa-utensils"></i> মাসিক মিল রেট</span>
+                            <h4 id="kpiMealRate" class="text-5xl font-black mt-4">৳ 0.00</h4>
+                            <p class="text-sm font-bold text-emerald-400 mt-1">গড় খরচ / বেলা</p>
                         </div>
-                        <div class="mt-6 pt-4 border-t border-white/20 flex justify-between items-center text-xs font-medium">
-                            <span>মোট খাওয়া বেলা: <strong id="dash-total-meals" class="text-white text-sm">0</strong></span>
-                            <button onclick="switchTab('meal')" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl transition no-print">হিসাব দেখুন</button>
+                        <div class="mt-6 pt-4 border-t border-white/10 flex justify-between items-center text-sm">
+                            <span class="font-bold">মোট খাওয়ার বেলা:</span>
+                            <span id="kpiTotalMeals" class="font-black text-lg bg-emerald-500 px-3 py-1 rounded-lg text-white">0</span>
                         </div>
                     </div>
-
-                    <div class="md:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-                        <h3 class="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">খাতভিত্তিক খরচ ও এনালাইসিস</h3>
+                    <div class="lg:col-span-2 glass-panel p-6 rounded-[2rem]">
+                        <h3 class="font-black text-sm mb-4"><i class="fa-solid fa-chart-pie text-emerald-500 mr-2"></i> খরচের ডিস্ট্রিবিউশন</h3>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                            <div class="h-44 relative flex items-center justify-center">
-                                <canvas id="expensePieChart"></canvas>
-                            </div>
-                            <div id="categorySummaryList" class="space-y-2 max-h-48 overflow-y-auto pr-1 hide-scrollbar text-xs">
-                                <!-- Dynamic Category breakdown -->
-                            </div>
+                            <div class="h-48 relative"><canvas id="categoryChart"></canvas></div>
+                            <div id="categorySummaryList" class="max-h-48 overflow-y-auto pr-2 hide-scrollbar space-y-2"></div>
                         </div>
                     </div>
                 </div>
-            </section>
 
-            <!-- 2. SOLO MEAL TRACKER TAB -->
-            <section id="tab-meal" class="space-y-6 tab-content hidden">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">🍳 একলা রান্নার হিসাব (Solo Meal Tracker)</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">সকাল, দুপুর ও রাতে ঘরে রান্না করে খেলে ১, না খেলে ০ দিন</p>
-                    </div>
-                    <button onclick="openModal('mealModal')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-2xl shadow-md transition flex items-center gap-2 text-sm no-print">
-                        <i class="fa-solid fa-plus"></i> নতুন মিল যোগ করুন
-                    </button>
-                </div>
-
-                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-400 text-[11px] uppercase tracking-wider font-bold">
-                                    <th class="p-4">তারিখ</th>
-                                    <th class="p-4 text-center">সকাল</th>
-                                    <th class="p-4 text-center">দুপুর</th>
-                                    <th class="p-4 text-center">রাত</th>
-                                    <th class="p-4 text-center">মোট বেলা</th>
-                                    <th class="p-4 text-right">আনুমানিক খরচ</th>
-                                    <th class="p-4 text-center no-print">অ্যাকশন</th>
-                                </tr>
-                            </thead>
-                            <tbody id="mealTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm"></tbody>
-                        </table>
-                    </div>
+                <div class="glass-panel p-6 rounded-[2rem]">
+                    <h3 class="font-black text-sm mb-4"><i class="fa-solid fa-chart-line text-blue-500 mr-2"></i> গত ৭ দিনের ট্রেন্ড</h3>
+                    <div class="h-56 relative"><canvas id="trendChart"></canvas></div>
                 </div>
             </section>
 
-            <!-- 3. INCOME TAB -->
-            <section id="tab-income" class="space-y-6 tab-content hidden">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">💰 আয়ের হিসাব (Income)</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">বাসা থেকে পাঠানো টাকা বা অনলাইন কাজের পেমেন্ট রেকর্ড করুন</p>
+            <!-- TAB: LEDGER -->
+            <section id="tab-ledger" class="tab-content hidden space-y-4">
+                <div class="glass-panel p-4 rounded-2xl flex flex-col md:flex-row gap-3">
+                    <div class="relative flex-1">
+                        <label for="searchTxn" class="sr-only">সার্চ ট্রানজেকশন</label>
+                        <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="searchTxn" placeholder="সার্চ করুন..." class="w-full glass-panel pl-11 pr-4 py-2.5 rounded-xl text-sm font-bold outline-none">
                     </div>
-                    <button onclick="openModal('incomeModal')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-2xl shadow-md transition flex items-center gap-2 text-sm no-print">
-                        <i class="fa-solid fa-plus"></i> আয় যোগ করুন
-                    </button>
+                    <label for="filterTxnType" class="sr-only">ট্রানজেকশন ফিল্টার</label>
+                    <select id="filterTxnType" class="glass-panel px-4 py-2.5 rounded-xl text-sm font-bold outline-none cursor-pointer">
+                        <option value="all">সব এন্ট্রি</option>
+                        <option value="income">আয়</option>
+                        <option value="expense">খরচ</option>
+                        <option value="transfer">ট্রান্সফার</option>
+                    </select>
                 </div>
-
-                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-400 text-[11px] uppercase tracking-wider font-bold">
+                
+                <div class="glass-panel rounded-[1.5rem] overflow-hidden">
+                    <div class="overflow-x-auto hide-scrollbar">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-100/50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-500">
+                                <tr>
                                     <th class="p-4">তারিখ</th>
-                                    <th class="p-4">উৎস (Source)</th>
                                     <th class="p-4">বিবরণ</th>
-                                    <th class="p-4 text-right">টাকা</th>
+                                    <th class="p-4 text-center">সোর্স</th>
+                                    <th class="p-4 text-right">পরিমাণ (৳)</th>
                                     <th class="p-4 text-center no-print">অ্যাকশন</th>
                                 </tr>
                             </thead>
-                            <tbody id="incomeTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm"></tbody>
+                            <tbody id="txnTableBody" class="divide-y divide-slate-200/50 dark:divide-slate-700/50 text-sm font-bold"></tbody>
                         </table>
+                    </div>
+                    <div id="txnEmptyState" class="hidden py-10 text-center text-slate-400">
+                        <i class="fa-solid fa-receipt text-4xl mb-3 opacity-50"></i>
+                        <p class="font-bold text-sm">কোনো ট্রানজেকশন পাওয়া যায়নি</p>
                     </div>
                 </div>
             </section>
 
-            <!-- 4. EXPENSE TAB -->
-            <section id="tab-expense" class="space-y-6 tab-content hidden">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">📉 খরচের হিসাব (Expense)</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">বাজার খরচ, বাসা ভাড়া, কারেন্ট বিল বা ওয়াইফাই বিল ট্র্যাক করুন</p>
-                    </div>
-                    <button onclick="openModal('expenseModal')" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-2.5 rounded-2xl shadow-md transition flex items-center gap-2 text-sm no-print">
-                        <i class="fa-solid fa-plus"></i> খরচ যোগ করুন
-                    </button>
+            <!-- TAB: MEALS -->
+            <section id="tab-meals" class="tab-content hidden space-y-4">
+                <div class="grid grid-cols-3 gap-3 mb-2">
+                    <div class="glass-panel p-4 rounded-xl text-center"><p class="text-[10px] uppercase font-black text-slate-500">সকাল</p><h4 id="statBreakfast" class="text-xl font-black mt-1 text-emerald-500">0</h4></div>
+                    <div class="glass-panel p-4 rounded-xl text-center"><p class="text-[10px] uppercase font-black text-slate-500">দুপুর</p><h4 id="statLunch" class="text-xl font-black mt-1 text-blue-500">0</h4></div>
+                    <div class="glass-panel p-4 rounded-xl text-center"><p class="text-[10px] uppercase font-black text-slate-500">রাত</p><h4 id="statDinner" class="text-xl font-black mt-1 text-indigo-500">0</h4></div>
                 </div>
-
-                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-400 text-[11px] uppercase tracking-wider font-bold">
-                                    <th class="p-4">তারিখ</th>
-                                    <th class="p-4">খরচের খাত (Category)</th>
-                                    <th class="p-4">বিবরণ</th>
-                                    <th class="p-4 text-right">টাকা</th>
-                                    <th class="p-4 text-center no-print">অ্যাকশন</th>
+                <div class="glass-panel rounded-[1.5rem] overflow-hidden">
+                    <div class="overflow-x-auto hide-scrollbar">
+                        <table class="w-full text-center">
+                            <thead class="bg-slate-100/50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-500">
+                                <tr>
+                                    <th class="p-4 text-left">তারিখ</th>
+                                    <th class="p-4">সকাল</th>
+                                    <th class="p-4">দুপুর</th>
+                                    <th class="p-4">রাত</th>
+                                    <th class="p-4 text-amber-500">মোট</th>
+                                    <th class="p-4 no-print">অ্যাকশন</th>
                                 </tr>
                             </thead>
-                            <tbody id="expenseTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm"></tbody>
+                            <tbody id="mealTableBody" class="divide-y divide-slate-200/50 dark:divide-slate-700/50 text-sm font-bold"></tbody>
                         </table>
                     </div>
-                </div>
-            </section>
-
-            <!-- 5. BUDGET TAB -->
-            <section id="tab-budget" class="space-y-6 tab-content hidden">
-                <div>
-                    <h2 class="text-2xl font-black text-slate-900 dark:text-white">🎯 বাজেট ও লিমিট (Budget & Savings)</h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">প্রতি খাতের মাসিক খরচ ও বাজেট লক্ষ্য নির্ধারণ করুন</p>
-                </div>
-
-                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm p-6">
-                    <div id="budgetContainer" class="space-y-4"></div>
-                </div>
-            </section>
-
-            <!-- 6. SETTINGS TAB -->
-            <section id="tab-settings" class="space-y-6 tab-content hidden no-print">
-                <div>
-                    <h2 class="text-2xl font-black text-slate-900 dark:text-white">⚙️ সেটিংস ও ক্যাটাগরি</h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">rcivedaily.com অ্যাকাউন্ট ও কাস্টম ক্যাটাগরি</p>
-                </div>
-
-                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 space-y-4 shadow-sm">
-                    <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">কাস্টম ক্যাটাগরি যোগ করুন (যেমন: বাসা ভাড়া, ওয়াইফাই বিল)</h3>
-                    <div class="flex gap-2">
-                        <input type="text" id="newCategoryInput" placeholder="নতুন খাতের নাম লিখুন..." class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <button onclick="addNewCategory()" class="bg-emerald-600 text-white px-5 py-3 rounded-2xl text-sm font-semibold hover:bg-emerald-700 transition">যুক্ত করুন</button>
+                    <div id="mealEmptyState" class="hidden py-10 text-center text-slate-400">
+                        <i class="fa-solid fa-utensils text-4xl mb-3 opacity-50"></i>
+                        <p class="font-bold text-sm">কোনো মিল এন্ট্রি নেই</p>
                     </div>
-                    <div id="categoryList" class="flex flex-wrap gap-2 pt-2"></div>
-                </div>
-
-                <!-- Author Badge -->
-                <div class="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-3xl p-6 text-center space-y-2">
-                    <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Developer Credit</span>
-                    <h4 class="text-lg font-extrabold text-slate-800 dark:text-slate-100">Author by Rifat Hosen ( GTEC - 5th )</h4>
-                    <p class="text-xs text-slate-500">Rcive Daily Cloud SaaS Edition v20</p>
                 </div>
             </section>
 
+            <!-- TAB: PLANNING -->
+            <section id="tab-planning" class="tab-content hidden space-y-6">
+                <div>
+                    <h3 class="font-black text-sm uppercase text-slate-500 mb-3 px-2">ওয়ালেট ব্যালেন্স</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3" id="walletCardsContainer"></div>
+                </div>
+
+                <!-- Wallet Opening Balances -->
+                <div class="glass-panel p-6 rounded-[2rem]">
+                    <h3 class="font-black text-sm mb-4"><i class="fa-solid fa-wallet text-blue-500 mr-2"></i> প্রারম্ভিক ব্যালেন্স (Opening Balance)</h3>
+                    <div id="walletOpeningList" class="space-y-3 mb-4"></div>
+                    <button type="button" id="saveOpeningBalancesBtn" class="w-full bg-blue-500 text-white px-4 py-2.5 rounded-xl font-black hover:bg-blue-600 transition-colors">সেভ করুন</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 rounded-[2rem]">
+                        <h3 class="font-black text-sm mb-4"><i class="fa-solid fa-bullseye text-emerald-500 mr-2"></i> মাসিক বাজেট লিমিট</h3>
+                        <div class="flex gap-2 mb-4">
+                            <label for="budgetInput" class="sr-only">মাসিক বাজেট</label>
+                            <input type="number" id="budgetInput" min="0" step="any" inputmode="decimal" placeholder="লিমিট (৳)" class="flex-1 glass-panel px-4 py-2.5 rounded-xl font-bold outline-none">
+                            <button type="button" id="saveBudgetBtn" class="bg-emerald-500 text-white px-4 rounded-xl font-black hover:bg-emerald-600 transition-colors">সেভ</button>
+                        </div>
+                        <div class="flex justify-between text-xs font-bold mb-1"><span class="text-slate-500">বাজেট ব্যবহার</span><span id="budgetPercentText">0%</span></div>
+                        <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden"><div id="budgetProgressBar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div></div>
+                        <p id="budgetWarningText" class="text-[10px] font-bold text-rose-500 mt-2 hidden"><i class="fa-solid fa-triangle-exclamation"></i> আপনি বাজেট অতিক্রম করেছেন!</p>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-[2rem]">
+                        <h3 class="font-black text-sm mb-4"><i class="fa-solid fa-piggy-bank text-amber-500 mr-2"></i> সঞ্চয় টার্গেট</h3>
+                        <div class="flex gap-2 mb-4">
+                            <label for="savingsGoalInput" class="sr-only">সঞ্চয় টার্গেট</label>
+                            <input type="number" id="savingsGoalInput" min="0" step="any" inputmode="decimal" placeholder="টার্গেট (৳)" class="flex-1 glass-panel px-4 py-2.5 rounded-xl font-bold outline-none">
+                            <button type="button" id="saveSavingsBtn" class="bg-amber-500 text-white px-4 rounded-xl font-black hover:bg-amber-600 transition-colors">সেভ</button>
+                        </div>
+                        <div class="flex justify-between text-xs font-bold mb-1"><span class="text-slate-500">অর্জন</span><span id="savingsPercentText">0%</span></div>
+                        <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden"><div id="savingsProgressBar" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: SETTINGS -->
+            <section id="tab-settings" class="tab-content hidden space-y-6 no-print">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 rounded-[2rem]">
+                        <h3 class="font-black text-sm mb-4"><i class="fa-solid fa-tags text-indigo-500 mr-2"></i> কাস্টম ক্যাটাগরি</h3>
+                        <form id="addCategoryForm" class="flex flex-col gap-3 mb-4">
+                            <div class="flex gap-2">
+                                <label for="newCategoryInput" class="sr-only">খাতের নাম</label>
+                                <input type="text" id="newCategoryInput" maxlength="40" required placeholder="খাতের নাম..." class="flex-1 glass-panel px-4 py-2.5 rounded-xl font-bold outline-none">
+                                
+                                <label for="newCategoryType" class="sr-only">খাতের ধরন</label>
+                                <select id="newCategoryType" class="glass-panel px-2 py-2.5 rounded-xl font-bold outline-none cursor-pointer">
+                                    <option value="expense">খরচ</option>
+                                    <option value="income">আয়</option>
+                                </select>
+                                
+                                <button type="submit" class="bg-indigo-500 text-white px-4 rounded-xl font-black hover:bg-indigo-600 transition-colors">যুক্ত</button>
+                            </div>
+                            <div id="newCategoryBazarGroup" class="flex items-center gap-2 px-1">
+                                <input type="checkbox" id="newCategoryIsBazar" class="w-4 h-4 cursor-pointer">
+                                <label for="newCategoryIsBazar" class="text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer">বাজার খাত (মিল রেটে গণনা হবে)</label>
+                            </div>
+                        </form>
+                        <div id="settingsCategoryList" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto hide-scrollbar"></div>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-[2rem] space-y-4">
+                        <h3 class="font-black text-sm mb-4"><i class="fa-solid fa-sliders text-emerald-500 mr-2"></i> সিস্টেম ও ডাটা</h3>
+                        <div class="flex items-center justify-between p-3 glass-panel rounded-xl">
+                            <span class="font-bold text-sm">ডার্ক মোড</span>
+                            <button type="button" id="themeToggleBtn" aria-label="থিম পরিবর্তন" class="text-xl text-slate-500 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-moon"></i></button>
+                        </div>
+                        <hr class="border-slate-200 dark:border-slate-700">
+                        <button type="button" id="backupJsonBtn" class="w-full glass-panel py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:text-emerald-500"><i class="fa-solid fa-download"></i> ডাটা ব্যাকআপ (JSON)</button>
+                        <label class="relative focus-within:ring-2 focus-within:ring-emerald-500 w-full glass-panel py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:text-blue-500 cursor-pointer" for="restoreJsonInput">
+                            <i class="fa-solid fa-upload"></i> ডাটা রিস্টোর (JSON)
+                            <input type="file" id="restoreJsonInput" accept=".json" class="sr-only">
+                        </label>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
-    <!-- Native Mobile Bottom Navigation Bar -->
-    <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-2 py-2 flex justify-around items-center md:hidden shadow-lg no-print">
-        <button onclick="switchTab('dashboard')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="dashboard">
-            <i class="fa-solid fa-chart-pie text-lg"></i>
-            <span class="text-[10px] font-bold mt-0.5">ড্যাশবোর্ড</span>
-        </button>
-        <button onclick="switchTab('meal')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="meal">
-            <i class="fa-solid fa-utensils text-lg"></i>
-            <span class="text-[10px] font-bold mt-0.5">রান্না</span>
-        </button>
-        <button onclick="switchTab('income')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="income">
-            <i class="fa-solid fa-wallet text-lg"></i>
-            <span class="text-[10px] font-bold mt-0.5">আয়</span>
-        </button>
-        <button onclick="switchTab('expense')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="expense">
-            <i class="fa-solid fa-receipt text-lg"></i>
-            <span class="text-[10px] font-bold mt-0.5">খরচ</span>
-        </button>
-        <button onclick="switchTab('budget')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="budget">
-            <i class="fa-solid fa-bullseye text-lg"></i>
-            <span class="text-[10px] font-bold mt-0.5">বাজেট</span>
-        </button>
-        <button onclick="switchTab('settings')" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-emerald-500 transition" data-target="settings">
-            <i class="fa-solid fa-gear text-lg"></i>
-            <span class="text-[10px] font-bold mt-0.5">সেটিংস</span>
-        </button>
+    <!-- FAB -->
+    <div id="fabContainer" class="fixed bottom-24 md:bottom-10 right-6 z-40 hidden flex-col items-end gap-3 no-print">
+        <button type="button" id="fabBtn" aria-label="নতুন এন্ট্রি যোগ করুন" class="w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:scale-105 active:scale-95 transition-transform"><i class="fa-solid fa-plus"></i></button>
+    </div>
+
+    <!-- BOTTOM NAVIGATION -->
+    <nav id="bottomNav" aria-label="প্রধান নেভিগেশন" class="fixed bottom-0 left-0 right-0 z-40 glass-panel !rounded-none !border-x-0 !border-b-0 flex justify-around items-center md:hidden no-print hidden">
+        <button type="button" aria-label="ওভারভিউ" class="nav-btn p-3 text-slate-400 flex flex-col items-center gap-1 w-full" data-target="dashboard"><i class="fa-solid fa-chart-line text-lg"></i><span class="text-[9px] font-black uppercase">ওভারভিউ</span></button>
+        <button type="button" aria-label="লেজার" class="nav-btn p-3 text-slate-400 flex flex-col items-center gap-1 w-full" data-target="ledger"><i class="fa-solid fa-list-check text-lg"></i><span class="text-[9px] font-black uppercase">লেজার</span></button>
+        <button type="button" aria-label="রান্না" class="nav-btn p-3 text-slate-400 flex flex-col items-center gap-1 w-full" data-target="meals"><i class="fa-solid fa-fire-burner text-lg"></i><span class="text-[9px] font-black uppercase">রান্না</span></button>
+        <button type="button" aria-label="প্ল্যানিং" class="nav-btn p-3 text-slate-400 flex flex-col items-center gap-1 w-full" data-target="planning"><i class="fa-solid fa-bullseye text-lg"></i><span class="text-[9px] font-black uppercase">প্ল্যান</span></button>
+        <button type="button" aria-label="সেটিংস" class="nav-btn p-3 text-slate-400 flex flex-col items-center gap-1 w-full" data-target="settings"><i class="fa-solid fa-gear text-lg"></i><span class="text-[9px] font-black uppercase">সেটিংস</span></button>
     </nav>
 
-    <!-- MODALS -->
-    <!-- Income Modal -->
-    <div id="incomeModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <h3 class="text-base font-bold text-slate-900 dark:text-white">💰 নতুন আয় যোগ করুন</h3>
-            <form onsubmit="handleIncomeSubmit(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">তারিখ</label>
-                    <input type="date" id="incDate" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">আয়ের উৎস</label>
-                    <select id="incSource" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                        <option value="বাসা থেকে পাঠানো টাকা">বাসা থেকে পাঠানো টাকা</option>
-                        <option value="অনলাইন কাজ / প্রজেক্ট পেমেন্ট">অনলাইন কাজ / প্রজেক্ট পেমেন্ট</option>
-                        <option value="ধার নেওয়া টাকা">ধার নেওয়া টাকা</option>
-                        <option value="অন্যান্য আয়">অন্যান্য আয়</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">টাকা (৳)</label>
-                    <input type="number" id="incAmount" step="0.01" required placeholder="0.00" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">বিবরণ</label>
-                    <input type="text" id="incNotes" placeholder="যেমন: মাসের হাতখরচ" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeModal('incomeModal')" class="px-4 py-2.5 rounded-2xl text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">বাতিল</button>
-                    <button type="submit" class="px-5 py-2.5 rounded-2xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow">সংরক্ষণ করুন</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Expense Modal -->
-    <div id="expenseModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <h3 class="text-base font-bold text-slate-900 dark:text-white">📉 খরচ যোগ করুন</h3>
-            <form onsubmit="handleExpenseSubmit(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">তারিখ</label>
-                    <input type="date" id="expDate" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">খরচের খাত</label>
-                    <select id="expCategory" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
-                        <!-- Populated Dynamically -->
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">টাকা (৳)</label>
-                    <input type="number" id="expAmount" step="0.01" required placeholder="0.00" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">বিবরণ</label>
-                    <input type="text" id="expNotes" placeholder="যেমন: বাসা ভাড়া / কারেন্ট বিল" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
-                </div>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeModal('expenseModal')" class="px-4 py-2.5 rounded-2xl text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">বাতিল</button>
-                    <button type="submit" class="px-5 py-2.5 rounded-2xl text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow">সংরক্ষণ করুন</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Meal Modal -->
-    <div id="mealModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <h3 class="text-base font-bold text-slate-900 dark:text-white">🍳 দৈনিক মিল যোগ করুন</h3>
-            <form onsubmit="handleMealSubmit(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">তারিখ</label>
-                    <input type="date" id="mealDate" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
-                <div class="grid grid-cols-3 gap-2">
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">সকাল</label>
-                        <input type="number" id="mealBreakfast" step="0.5" min="0" max="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-3 py-2.5 text-sm text-center">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">দুপুর</label>
-                        <input type="number" id="mealLunch" step="0.5" min="0" max="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-3 py-2.5 text-sm text-center">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">রাত</label>
-                        <input type="number" id="mealDinner" step="0.5" min="0" max="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-3 py-2.5 text-sm text-center">
-                    </div>
-                </div>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeModal('mealModal')" class="px-4 py-2.5 rounded-2xl text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">বাতিল</button>
-                    <button type="submit" class="px-5 py-2.5 rounded-2xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow">সংরক্ষণ করুন</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Application Script Engine -->
-    <script>
-        let activeUser = localStorage.getItem('rcive_active_user');
-        let appData = {};
-
-        function loadUserData(username) {
-            let userKey = `rcive_cloud_data_${username}`;
-            let saved = localStorage.getItem(userKey);
-            if(saved) {
-                appData = JSON.parse(saved);
-            } else {
-                appData = {
-                    income: [
-                        { id: 1, date: '2026-11-01', source: 'বাসা থেকে পাঠানো টাকা', amount: 6000, notes: 'মাসের হাতখরচ' },
-                        { id: 2, date: '2026-11-03', source: 'অনলাইন কাজ / প্রজেক্ট পেমেন্ট', amount: 4000, notes: 'ফ্রিল্যান্সিং কাজ' }
-                    ],
-                    expense: [
-                        { id: 1, date: '2026-11-01', category: 'নিজের রান্নার বাজার (চাল, ডাল, মাছ, মাংস, সবজি, তেল, মসলা)', amount: 850, notes: 'চাল ও ডাল' },
-                        { id: 2, date: '2026-11-01', category: 'বাসা ভাড়া', amount: 3500, notes: 'চলতি মাসের ভাড়া' },
-                        { id: 3, date: '2026-11-01', category: 'কারেন্ট বিল', amount: 450, notes: 'বিদ্যুৎ বিল' },
-                        { id: 4, date: '2026-11-01', category: 'ওয়াইফাই বিল', amount: 500, notes: 'ইন্টারনেট বিল' }
-                    ],
-                    meals: [
-                        { id: 1, date: '2026-11-01', breakfast: 1, lunch: 1, dinner: 1 },
-                        { id: 2, date: '2026-11-02', breakfast: 1, lunch: 1, dinner: 1 }
-                    ],
-                    categories: [
-                        'নিজের রান্নার বাজার (চাল, ডাল, মাছ, মাংস, সবজি, তেল, মসলা)',
-                        'বাসা ভাড়া',
-                        'কারেন্ট বিল',
-                        'ওয়াইফাই বিল',
-                        'বাইরের খাবার ও চা-নাস্তা',
-                        'যাতায়াত (বাস/রিকশা/বাইক)',
-                        'পড়াশোনা ও স্টেশনারি',
-                        'মোবাইল রিচার্জ ও ইন্টারনেট',
-                        'জরুরি / চিকিৎসা',
-                        'অন্যান্য বিবিধ খরচ'
-                    ],
-                    budgets: {
-                        'নিজের রান্নার বাজার (চাল, ডাল, মাছ, মাংস, সবজি, তেল, মসলা)': 4000,
-                        'বাসা ভাড়া': 4000,
-                        'কারেন্ট বিল': 600,
-                        'ওয়াইফাই বিল': 500,
-                        'বাইরের খাবার ও চা-নাস্তা': 800,
-                        'যাতায়াত (বাস/রিকশা/বাইক)': 600,
-                        'পড়াশোনা ও স্টেশনারি': 800,
-                        'জরুরি / চিকিৎসা': 500,
-                        'অন্যান্য বিবিধ খরচ': 400
-                    }
-                };
-                saveUserData();
-            }
-        }
-
-        function saveUserData() {
-            if(activeUser) {
-                localStorage.setItem(`rcive_cloud_data_${activeUser}`, JSON.stringify(appData));
-            }
-            renderAll();
-        }
-
-        let currentTab = 'dashboard';
-        let tabHistory = ['dashboard'];
-        let pieChartInstance = null;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date().toISOString().split('T')[0];
-            ['incDate', 'expDate', 'mealDate'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.value = today;
-            });
-
-            if(!activeUser) {
-                document.getElementById('authScreen').classList.remove('hidden');
-            } else {
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('userGreeting').innerText = `User: ${activeUser}`;
-                loadUserData(activeUser);
-                renderAll();
-            }
-        });
-
-        function handleCloudLogin(e) {
-            e.preventDefault();
-            const user = document.getElementById('cloudUser').value.trim();
-            if(user) {
-                activeUser = user;
-                localStorage.setItem('rcive_active_user', activeUser);
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('userGreeting').innerText = `User: ${activeUser}`;
-                loadUserData(activeUser);
-                renderAll();
-            }
-        }
-
-        function logoutCloud() {
-            localStorage.removeItem('rcive_active_user');
-            location.reload();
-        }
-
-        function switchTab(tabId, pushHistory = true) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                if(btn.dataset.target === tabId) {
-                    btn.classList.add('text-emerald-500');
-                    btn.classList.remove('text-slate-400');
-                } else {
-                    btn.classList.remove('text-emerald-500');
-                    btn.classList.add('text-slate-400');
-                }
-            });
-
-            if(pushHistory && tabHistory[tabHistory.length - 1] !== tabId) {
-                tabHistory.push(tabId);
-            }
-            currentTab = tabId;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function goBack() {
-            if (tabHistory.length > 1) {
-                tabHistory.pop();
-                let prevTab = tabHistory[tabHistory.length - 1];
-                switchTab(prevTab, false);
-            }
-        }
-
-        function toggleDarkMode() {
-            if (document.documentElement.classList.contains('dark')) {
-                document.documentElement.classList.remove('dark');
-                document.getElementById('themeIcon').className = 'fa-solid fa-moon';
-            } else {
-                document.documentElement.classList.add('dark');
-                document.getElementById('themeIcon').className = 'fa-solid fa-sun';
-            }
-        }
-
-        function openModal(modalId) { 
-            if(modalId === 'expenseModal') {
-                populateCategoryDropdown();
-            }
-            document.getElementById(modalId).classList.remove('hidden'); 
-        }
-        function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
-
-        function populateCategoryDropdown() {
-            const select = document.getElementById('expCategory');
-            select.innerHTML = '';
-            appData.categories.forEach(cat => {
-                select.innerHTML += `<option value="${cat}">${cat}</option>`;
-            });
-        }
-
-        function calculateTotals() {
-            const totalIncome = appData.income.reduce((sum, item) => sum + Number(item.amount), 0);
-            const totalExpense = appData.expense.reduce((sum, item) => sum + Number(item.amount), 0);
-            const marketExpense = appData.expense
-                .filter(item => item.category.includes('নিজের রান্নার বাজার'))
-                .reduce((sum, item) => sum + Number(item.amount), 0);
-            const outsideFood = appData.expense
-                .filter(item => item.category.includes('বাইরের খাবার'))
-                .reduce((sum, item) => sum + Number(item.amount), 0);
+    <!-- ENTRY MODAL -->
+    <div id="entryModal" role="dialog" aria-modal="true" aria-labelledby="entryModalTitle" class="fixed inset-0 z-[60] flex items-center justify-center p-4 hidden">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" id="entryModalBackdrop"></div>
+        <div class="glass-panel w-full max-w-md rounded-[2rem] p-6 md:p-8 space-y-5 relative z-10 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 id="entryModalTitle" class="text-xl font-black">এন্ট্রি যোগ করুন</h3>
+                <button type="button" id="closeEntryModalBtn" aria-label="মডেল বন্ধ করুন" class="w-8 h-8 rounded-full glass-panel flex items-center justify-center text-slate-500 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
             
-            const totalMeals = appData.meals.reduce((sum, m) => sum + Number(m.breakfast) + Number(m.lunch) + Number(m.dinner), 0);
-            const mealRate = totalMeals > 0 ? marketExpense / totalMeals : 0;
-            const balance = totalIncome - totalExpense;
+            <form id="entryForm" class="space-y-4">
+                <div class="grid grid-cols-4 gap-2">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="entryTypeRadio" value="expense" class="peer sr-only" checked>
+                        <div class="text-center py-2 rounded-xl text-xs font-black peer-checked:bg-rose-500 peer-checked:text-white glass-panel transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500">খরচ</div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="entryTypeRadio" value="income" class="peer sr-only">
+                        <div class="text-center py-2 rounded-xl text-xs font-black peer-checked:bg-emerald-500 peer-checked:text-white glass-panel transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500">আয়</div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="entryTypeRadio" value="transfer" class="peer sr-only">
+                        <div class="text-center py-2 rounded-xl text-xs font-black peer-checked:bg-blue-500 peer-checked:text-white glass-panel transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500">ট্রান্সফার</div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="entryTypeRadio" value="meal" class="peer sr-only">
+                        <div class="text-center py-2 rounded-xl text-xs font-black peer-checked:bg-amber-500 peer-checked:text-white glass-panel transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500">মিল</div>
+                    </label>
+                </div>
+                
+                <div>
+                    <label for="entryDate" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">তারিখ</label>
+                    <input type="date" id="entryDate" required class="w-full glass-panel px-4 py-3 rounded-xl text-sm font-bold outline-none">
+                </div>
 
-            return { totalIncome, totalExpense, marketExpense, outsideFood, totalMeals, mealRate, balance };
-        }
-
-        function renderAll() {
-            renderDashboard();
-            renderIncomeTable();
-            renderExpenseTable();
-            renderMealTable();
-            renderBudgetView();
-            renderSettings();
-        }
-
-        function renderDashboard() {
-            const { totalIncome, totalExpense, marketExpense, outsideFood, totalMeals, mealRate, balance } = calculateTotals();
-
-            document.getElementById('kpi-income').innerText = `৳ ${totalIncome.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-            document.getElementById('kpi-expense').innerText = `৳ ${totalExpense.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-            document.getElementById('kpi-market').innerText = `৳ ${marketExpense.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-            document.getElementById('kpi-balance').innerText = `৳ ${balance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-
-            document.getElementById('dash-meal-rate').innerText = `৳ ${mealRate.toFixed(2)}`;
-            document.getElementById('dash-total-meals').innerText = totalMeals.toFixed(1);
-
-            let totalBudget = Object.values(appData.budgets).reduce((a,b)=>a+b, 0);
-            let budgetPct = totalBudget > 0 ? Math.min(100, (totalExpense / totalBudget) * 100) : 0;
-
-            renderPieChart();
-            renderCategorySummaryList(totalExpense);
-        }
-
-        function renderCategorySummaryList(totalExpense) {
-            const container = document.getElementById('categorySummaryList');
-            container.innerHTML = '';
-
-            let catTotals = {};
-            appData.categories.forEach(c => catTotals[c] = 0);
-            appData.expense.forEach(e => {
-                if(catTotals[e.category] !== undefined) catTotals[e.category] += Number(e.amount);
-                else catTotals[e.category] = Number(e.amount);
-            });
-
-            for(let cat of appData.categories) {
-                let amt = catTotals[cat] || 0;
-                let pct = totalExpense > 0 ? ((amt / totalExpense) * 100).toFixed(1) : 0;
-                container.innerHTML += `
-                    <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 px-3 py-2 rounded-xl">
-                        <span class="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[140px]">${cat}</span>
-                        <div class="text-right">
-                            <span class="font-bold text-slate-900 dark:text-white">৳ ${amt.toLocaleString()}</span>
-                            <span class="text-[10px] text-slate-400 ml-1">(${pct}%)</span>
+                <div id="entryTxnFields" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3" id="walletCategoryRow">
+                        <div id="categoryContainer">
+                            <label for="entryCategory" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">ক্যাটাগরি</label>
+                            <select id="entryCategory" class="w-full glass-panel px-3 py-3 rounded-xl text-sm font-bold outline-none"></select>
+                        </div>
+                        <div>
+                            <label for="entryWallet" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1" id="walletLabel">ওয়ালেট</label>
+                            <select id="entryWallet" class="w-full glass-panel px-3 py-3 rounded-xl text-sm font-bold outline-none"></select>
                         </div>
                     </div>
-                `;
-            }
-        }
+                    
+                    <div id="transferToContainer" class="hidden">
+                        <label for="entryToWallet" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">কোন ওয়ালেটে যাবে?</label>
+                        <select id="entryToWallet" class="w-full glass-panel px-3 py-3 rounded-xl text-sm font-bold outline-none"></select>
+                    </div>
 
-        function renderIncomeTable() {
-            const tbody = document.getElementById('incomeTableBody');
-            tbody.innerHTML = '';
-            if(appData.income.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">কোনো আয়ের তথ্য পাওয়া যায়নি</td></tr>`;
-                return;
-            }
-            appData.income.forEach(item => {
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                        <td class="p-4 font-medium">${item.date}</td>
-                        <td class="p-4">${item.source}</td>
-                        <td class="p-4 text-slate-400">${item.notes || '-'}</td>
-                        <td class="p-4 text-right font-bold text-emerald-600">৳ ${Number(item.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                        <td class="p-4 text-center no-print">
-                            <button onclick="deleteItem('income', ${item.id})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
+                    <div>
+                        <label for="entryAmount" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">পরিমাণ (৳)</label>
+                        <input type="number" id="entryAmount" step="any" min="0.01" inputmode="decimal" required placeholder="0.00" class="w-full glass-panel px-4 py-3 rounded-xl text-xl font-black outline-none">
+                    </div>
+                    
+                    <div>
+                        <label for="entryNotes" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">বিবরণ / নোট (ঐচ্ছিক)</label>
+                        <input type="text" id="entryNotes" maxlength="500" placeholder="নোট লিখুন..." class="w-full glass-panel px-4 py-3 rounded-xl text-sm font-bold outline-none">
+                    </div>
+                    
+                    <div id="receiptContainer">
+                        <label for="entryReceipt" class="relative block w-full focus-within:ring-2 focus-within:ring-emerald-500 glass-panel border border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-3 text-center cursor-pointer hover:border-emerald-500 transition-colors">
+                            <i class="fa-solid fa-cloud-arrow-up text-lg text-slate-400 mb-1"></i>
+                            <span class="block text-[10px] font-black text-slate-500" id="entryReceiptLabel">রসিদ ছবি আপলোড (সর্বোচ্চ ২MB)</span>
+                            <input type="file" id="entryReceipt" accept="image/*" class="sr-only">
+                        </label>
+                    </div>
+                </div>
 
-        function renderExpenseTable() {
-            const tbody = document.getElementById('expenseTableBody');
-            tbody.innerHTML = '';
-            if(appData.expense.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">কোনো খরচের তথ্য পাওয়া যায়নি</td></tr>`;
-                return;
-            }
-            appData.expense.forEach(item => {
-                let isHigh = Number(item.amount) >= 500;
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition ${isHigh ? 'bg-rose-50/50 dark:bg-rose-950/20' : ''}">
-                        <td class="p-4 font-medium">${item.date}</td>
-                        <td class="p-4 font-medium">${item.category}</td>
-                        <td class="p-4 text-slate-400">${item.notes || '-'}</td>
-                        <td class="p-4 text-right font-bold ${isHigh ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'}">৳ ${Number(item.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                        <td class="p-4 text-center no-print">
-                            <button onclick="deleteItem('expense', ${item.id})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
+                <div id="entryMealFields" class="hidden space-y-4">
+                    <p class="text-[10px] font-bold text-slate-500 text-center mb-2">খাবার না খেলে 0 এবং হাফ মিলের জন্য 0.5 লিখুন।</p>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="text-center">
+                            <label for="mealB" class="block text-[10px] font-black uppercase text-slate-500 mb-1">সকাল</label>
+                            <input type="number" id="mealB" step="0.5" min="0" max="1" value="1" class="w-full glass-panel py-3 rounded-xl text-lg font-black text-amber-500 text-center outline-none">
+                        </div>
+                        <div class="text-center">
+                            <label for="mealL" class="block text-[10px] font-black uppercase text-slate-500 mb-1">দুপুর</label>
+                            <input type="number" id="mealL" step="0.5" min="0" max="1" value="1" class="w-full glass-panel py-3 rounded-xl text-lg font-black text-amber-500 text-center outline-none">
+                        </div>
+                        <div class="text-center">
+                            <label for="mealD" class="block text-[10px] font-black uppercase text-slate-500 mb-1">রাত</label>
+                            <input type="number" id="mealD" step="0.5" min="0" max="1" value="1" class="w-full glass-panel py-3 rounded-xl text-lg font-black text-amber-500 text-center outline-none">
+                        </div>
+                    </div>
+                </div>
 
-        function renderMealTable() {
-            const tbody = document.getElementById('mealTableBody');
-            tbody.innerHTML = '';
-            const { mealRate } = calculateTotals();
+                <button type="submit" id="entrySubmitBtn" class="w-full bg-slate-900 dark:bg-emerald-600 text-white font-black py-3.5 rounded-xl shadow-lg mt-2 flex items-center justify-center gap-2 transition-transform active:scale-95"><i class="fa-solid fa-check"></i> সংরক্ষণ করুন</button>
+            </form>
+        </div>
+    </div>
 
-            if(appData.meals.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">কোনো মিলের তথ্য পাওয়া যায়নি</td></tr>`;
-                return;
-            }
-
-            appData.meals.forEach(m => {
-                let totalM = Number(m.breakfast) + Number(m.lunch) + Number(m.dinner);
-                let cost = totalM * mealRate;
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                        <td class="p-4 font-medium">${m.date}</td>
-                        <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 font-medium">${m.breakfast}</span></td>
-                        <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 font-medium">${m.lunch}</span></td>
-                        <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 font-medium">${m.dinner}</span></td>
-                        <td class="p-4 text-center font-bold text-emerald-600">${totalM.toFixed(1)}</td>
-                        <td class="p-4 text-right font-semibold text-amber-600">৳ ${cost.toFixed(2)}</td>
-                        <td class="p-4 text-center no-print">
-                            <button onclick="deleteItem('meals', ${m.id})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        function renderBudgetView() {
-            const container = document.getElementById('budgetContainer');
-            container.innerHTML = '';
+    <!-- EDIT MODAL -->
+    <div id="editModal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle" class="fixed inset-0 z-[60] flex items-center justify-center p-4 hidden">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" id="editModalBackdrop"></div>
+        <div class="glass-panel w-full max-w-md rounded-[2rem] p-6 md:p-8 space-y-5 relative z-10 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 id="editModalTitle" class="text-xl font-black">এডিট করুন</h3>
+                <button type="button" id="closeEditModalBtn" aria-label="এডিট মডেল বন্ধ করুন" class="w-8 h-8 rounded-full glass-panel flex items-center justify-center text-slate-500 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
             
-            appData.categories.forEach(cat => {
-                let budget = appData.budgets[cat] || 1000;
-                let spent = appData.expense.filter(e => e.category === cat).reduce((sum, e) => sum + Number(e.amount), 0);
-                let remaining = budget - spent;
-                let pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
-                let isOver = remaining < 0;
+            <form id="editForm" class="space-y-4">
+                <input type="hidden" id="editId">
+                <input type="hidden" id="editType">
+                <input type="hidden" id="editOriginalReceipt">
+                
+                <div>
+                    <label for="editDate" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">তারিখ</label>
+                    <input type="date" id="editDate" required class="w-full glass-panel px-4 py-3 rounded-xl text-sm font-bold outline-none">
+                </div>
 
-                container.innerHTML += `
-                    <div class="space-y-2 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0">
-                        <div class="flex justify-between items-center text-sm">
-                            <span class="font-bold text-slate-800 dark:text-slate-200">${cat}</span>
-                            <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${isOver ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}">
-                                ${isOver ? '⚠️ ওভার বাজেট' : '✅ সীমার ভেতরে'}
-                            </span>
+                <div id="editTxnFields">
+                    <div class="grid grid-cols-2 gap-3 mb-4" id="editWalletCategoryRow">
+                        <div id="editCategoryContainer">
+                            <label for="editCategory" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">ক্যাটাগরি</label>
+                            <select id="editCategory" class="w-full glass-panel px-3 py-3 rounded-xl text-sm font-bold outline-none"></select>
                         </div>
-                        <div class="grid grid-cols-3 text-xs text-slate-400 gap-2">
-                            <div>বাজেট: <strong class="text-slate-800 dark:text-slate-200">৳ ${budget.toLocaleString()}</strong></div>
-                            <div>খরচ: <strong class="text-slate-800 dark:text-slate-200">৳ ${spent.toLocaleString()}</strong></div>
-                            <div class="text-right">বাকি: <strong class="${isOver ? 'text-rose-600' : 'text-emerald-600'}">৳ ${remaining.toLocaleString()}</strong></div>
-                        </div>
-                        <div class="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                            <div class="h-full rounded-full ${isOver ? 'bg-rose-600' : 'bg-emerald-500'}" style="width: ${pct}%"></div>
+                        <div>
+                            <label for="editWallet" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">ওয়ালেট</label>
+                            <select id="editWallet" class="w-full glass-panel px-3 py-3 rounded-xl text-sm font-bold outline-none"></select>
                         </div>
                     </div>
-                `;
-            });
-        }
+                    
+                    <div id="editTransferToContainer" class="hidden mb-4">
+                        <label for="editToWallet" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">টু ওয়ালেট</label>
+                        <select id="editToWallet" class="w-full glass-panel px-3 py-3 rounded-xl text-sm font-bold outline-none"></select>
+                    </div>
 
-        function renderSettings() {
-            const list = document.getElementById('categoryList');
-            list.innerHTML = '';
-            appData.categories.forEach(cat => {
-                list.innerHTML += `<span class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs px-3 py-1.5 rounded-2xl font-medium">${cat}</span>`;
-            });
-        }
+                    <div class="mb-4">
+                        <label for="editAmount" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">পরিমাণ (৳)</label>
+                        <input type="number" id="editAmount" step="any" min="0.01" inputmode="decimal" required class="w-full glass-panel px-4 py-3 rounded-xl text-xl font-black outline-none">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="editNotes" class="block text-[10px] font-black uppercase text-slate-500 mb-1 ml-1">বিবরণ / নোট</label>
+                        <input type="text" id="editNotes" maxlength="500" class="w-full glass-panel px-4 py-3 rounded-xl text-sm font-bold outline-none">
+                    </div>
+                    
+                    <div id="editReceiptContainer">
+                        <label for="editReceipt" class="relative block w-full focus-within:ring-2 focus-within:ring-emerald-500 glass-panel border border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-3 text-center cursor-pointer hover:border-emerald-500 transition-colors">
+                            <i class="fa-solid fa-cloud-arrow-up text-lg text-slate-400 mb-1"></i>
+                            <span class="block text-[10px] font-black text-slate-500" id="editReceiptLabel">নতুন রসিদ ছবি (ঐচ্ছিক, না দিলে আগেরটি থাকবে)</span>
+                            <input type="file" id="editReceipt" accept="image/*" class="sr-only">
+                        </label>
+                        <div class="flex items-center gap-2 mt-2 px-1">
+                            <input type="checkbox" id="editRemoveReceipt" class="w-4 h-4 cursor-pointer">
+                            <label for="editRemoveReceipt" class="text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer">বর্তমান রসিদ মুছুন</label>
+                        </div>
+                    </div>
+                </div>
 
-        function renderPieChart() {
-            const ctx = document.getElementById('expensePieChart').getContext('2d');
-            let catTotals = {};
-            appData.categories.forEach(c => catTotals[c] = 0);
-            appData.expense.forEach(e => {
-                if(catTotals[e.category] !== undefined) catTotals[e.category] += Number(e.amount);
-                else catTotals[e.category] = Number(e.amount);
-            });
+                <div id="editMealFields" class="hidden space-y-4">
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="text-center">
+                            <label for="editMealB" class="block text-[10px] font-black uppercase text-slate-500 mb-1">সকাল</label>
+                            <input type="number" id="editMealB" step="0.5" min="0" max="1" required class="w-full glass-panel py-3 rounded-xl text-lg font-black text-amber-500 text-center outline-none">
+                        </div>
+                        <div class="text-center">
+                            <label for="editMealL" class="block text-[10px] font-black uppercase text-slate-500 mb-1">দুপুর</label>
+                            <input type="number" id="editMealL" step="0.5" min="0" max="1" required class="w-full glass-panel py-3 rounded-xl text-lg font-black text-amber-500 text-center outline-none">
+                        </div>
+                        <div class="text-center">
+                            <label for="editMealD" class="block text-[10px] font-black uppercase text-slate-500 mb-1">রাত</label>
+                            <input type="number" id="editMealD" step="0.5" min="0" max="1" required class="w-full glass-panel py-3 rounded-xl text-lg font-black text-amber-500 text-center outline-none">
+                        </div>
+                    </div>
+                </div>
 
-            let labels = Object.keys(catTotals).filter(k => catTotals[k] > 0);
-            let data = labels.map(k => catTotals[k]);
+                <button type="submit" id="editSubmitBtn" class="w-full bg-slate-900 dark:bg-emerald-600 text-white font-black py-3.5 rounded-xl shadow-lg mt-2 flex items-center justify-center gap-2 transition-transform active:scale-95"><i class="fa-solid fa-check"></i> আপডেট করুন</button>
+            </form>
+        </div>
+    </div>
 
-            if (pieChartInstance) pieChartInstance.destroy();
-
-            pieChartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: ['#10b981', '#2563eb', '#f59e0b', '#e11d48', '#7c3aed', '#db2777', '#0891b2', '#475569', '#14b8a6', '#6366f1'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
-
-        function handleIncomeSubmit(e) {
-            e.preventDefault();
-            const newItem = {
-                id: Date.now(),
-                date: document.getElementById('incDate').value,
-                source: document.getElementById('incSource').value,
-                amount: parseFloat(document.getElementById('incAmount').value),
-                notes: document.getElementById('incNotes').value
-            };
-            appData.income.push(newItem);
-            saveUserData();
-            closeModal('incomeModal');
-            e.target.reset();
-        }
-
-        function handleExpenseSubmit(e) {
-            e.preventDefault();
-            const newItem = {
-                id: Date.now(),
-                date: document.getElementById('expDate').value,
-                category: document.getElementById('expCategory').value,
-                amount: parseFloat(document.getElementById('expAmount').value),
-                notes: document.getElementById('expNotes').value
-            };
-            appData.expense.push(newItem);
-            saveUserData();
-            closeModal('expenseModal');
-            e.target.reset();
-        }
-
-        function handleMealSubmit(e) {
-            e.preventDefault();
-            const newItem = {
-                id: Date.now(),
-                date: document.getElementById('mealDate').value,
-                breakfast: parseFloat(document.getElementById('mealBreakfast').value),
-                lunch: parseFloat(document.getElementById('mealLunch').value),
-                dinner: parseFloat(document.getElementById('mealDinner').value)
-            };
-            appData.meals.push(newItem);
-            saveUserData();
-            closeModal('mealModal');
-            e.target.reset();
-        }
-
-        function addNewCategory() {
-            const input = document.getElementById('newCategoryInput');
-            const val = input.value.trim();
-            if(val && !appData.categories.includes(val)) {
-                appData.categories.push(val);
-                appData.budgets[val] = 1000;
-                saveUserData();
-                input.value = '';
-                alert(`সফলভাবে "${val}" ক্যাটাগরি যুক্ত করা হয়েছে!`);
-            }
-        }
-
-        function deleteItem(type, id) {
-            if(confirm('আপনি কি নিশ্চিতভাবে এই এন্ট্রিটি ডিলিট করতে চান?')) {
-                appData[type] = appData[type].filter(item => item.id !== id);
-                saveUserData();
-            }
-        }
-
-        function generatePDFReport() {
-            const element = document.getElementById('pdfExportArea');
-            const opt = {
-                margin:       10,
-                filename:     `RciveDaily_Report_${activeUser}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            html2pdf().from(element).set(opt).save();
-        }
-    </script>
+    <!-- Scripts -->
+    <script src="./config.js"></script>
+    <script src="./app.js"></script>
+    <script src="./app-export.js"></script>
 </body>
 </html>
