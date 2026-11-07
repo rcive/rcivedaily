@@ -20,10 +20,10 @@ window.App = window.App || {};
 
 App.Config = Object.freeze({
     // Replace with your Supabase Project URL (e.g. https://abcdefgh.supabase.co)
-    SUPABASE_URL: 'YOUR_SUPABASE_PROJECT_URL',
+    SUPABASE_URL: 'https://hgblsnlgxdiklmazrfoi.supabase.co',
 
     // Replace with your Supabase anon / publishable key
-    SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
+    SUPABASE_ANON_KEY: 'sb_publishable_x3SLocuWJL13Vy1yS6n7RQ_SJkeS5pR',
 
     // True only after both placeholders above were replaced with real values
     isConfigured() {
