@@ -15,60 +15,51 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // 2. Initialize Auth Module
+    // 2. Initialize Auth Module with fallback
+    let authInitialized = false;
     if (window.App.Auth) {
-        const authInitialized = await window.App.Auth.init();
-        if (authInitialized) {
-            checkUserSession();
-        } else {
-            showAuthError();
+        try {
+            authInitialized = await window.App.Auth.init();
+        } catch (err) {
+            console.error("Auth init exception:", err);
         }
     } else {
         console.error("Auth module not found!");
     }
 
+    // Always proceed to check session or show auth screen
+    checkUserSession();
     setupEventListeners();
 });
 
 // Show configuration error on screen
 function showConfigError() {
-    const body = document.body;
-    body.innerHTML = `
-        <div style="background-color: #0b0f19; color: #fff; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; text-align: center; padding: 20px;">
-            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
-            <h2 style="color: #ff5252; margin-bottom: 10px;">Supabase কনফিগার করা হয়নি, config.js চেক করুন</h2>
-            <p style="color: #9ca3af; font-size: 14px;">দয়া করে config.js ফাইলে আপনার সঠিক Supabase URL এবং Key বসিয়ে আবার আপলোড করুন।</p>
-        </div>
-    `;
-}
-
-// Show auth initialization error
-function showAuthError() {
-    console.error("Failed to initialize authentication.");
+    const splashScreen = document.getElementById('splashScreen');
+    if (splashScreen) splashScreen.style.display = 'none';
+    const configErr = document.getElementById('configErrorScreen');
+    if (configErr) configErr.classList.remove('hidden');
 }
 
 // Check if user is logged in and route accordingly
 async function checkUserSession() {
-    const splashScreen = document.getElementById('splash-screen');
-    const authScreen = document.getElementById('auth-screen');
-    const appScreen = document.getElementById('app-screen');
+    const splashScreen = document.getElementById('splashScreen');
+    const authScreen = document.getElementById('authScreen');
+    const appScreen = document.getElementById('mainApp');
 
     // Hide splash screen after a short delay
     setTimeout(() => {
         if (splashScreen) splashScreen.style.display = 'none';
 
-        if (window.App.Auth.currentUser && window.App.Auth.currentProfile) {
+        if (window.App.Auth && window.App.Auth.currentUser && window.App.Auth.currentProfile) {
             const profile = window.App.Auth.currentProfile;
             
             if (profile.status === 'approved') {
                 if (authScreen) authScreen.classList.add('hidden');
                 if (appScreen) appScreen.classList.remove('hidden');
-                // Load dashboard data
                 if (window.App.Data && typeof window.App.Data.initDashboard === 'function') {
                     window.App.Data.initDashboard();
                 }
             } else {
-                // Pending approval
                 showPendingScreen();
             }
         } else {
@@ -76,7 +67,7 @@ async function checkUserSession() {
             if (authScreen) authScreen.classList.remove('hidden');
             if (appScreen) appScreen.classList.add('hidden');
         }
-    }, 1000);
+    }, 800);
 }
 
 // Setup global event listeners for UI forms
@@ -85,21 +76,19 @@ function setupEventListeners() {
     if (authForm) {
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const identifierInput = document.getElementById('auth-identifier');
-            const passwordInput = document.getElementById('auth-password');
-            const fullNameInput = document.getElementById('auth-fullname');
-            const isSignUp = document.getElementById('auth-mode-title')?.innerText.includes('Sign Up') || false;
+            const identifierInput = document.getElementById('authUsername');
+            const passwordInput = document.getElementById('authPassword');
+            const isSignUp = document.getElementById('authTitleText')?.innerText.includes('সাইন আপ') || false;
 
             const identifier = identifierInput ? identifierInput.value.trim() : '';
             const password = passwordInput ? passwordInput.value.trim() : '';
-            const fullName = fullNameInput ? fullNameInput.value.trim() : '';
 
             if (!identifier || !password) {
                 alert('দয়া করে ইউজারনেম এবং পাসওয়ার্ড দিন।');
                 return;
             }
 
-            const result = await window.App.Auth.handleAuthSubmit(identifier, password, isSignUp, fullName);
+            const result = await window.App.Auth.handleAuthSubmit(identifier, password, isSignUp);
             
             if (result.success) {
                 if (isSignUp) {
@@ -114,8 +103,45 @@ function setupEventListeners() {
         });
     }
 
+    // Toggle between Login and Signup mode
+    const toggleBtn = document.getElementById('authToggleBtn');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const title = document.getElementById('authTitleText');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const confirmGroup = document.getElementById('authConfirmGroup');
+            
+            if (title.innerText.includes('লগইন')) {
+                title.innerText = 'সাইন আপ';
+                submitBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> অ্যাকাউন্ট তৈরি করুন';
+                toggleBtn.innerText = 'লগইন করতে এখানে ক্লিক করুন';
+                if (confirmGroup) confirmGroup.classList.remove('hidden');
+            } else {
+                title.innerText = 'লগইন';
+                submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> প্রবেশ করুন';
+                toggleBtn.innerText = 'অ্যাকাউন্ট নেই? নতুন তৈরি করুন';
+                if (confirmGroup) confirmGroup.classList.add('hidden');
+            }
+        });
+    }
+
+    // Password visibility toggle
+    const togglePwdBtn = document.getElementById('authTogglePasswordBtn');
+    if (togglePwdBtn) {
+        togglePwdBtn.addEventListener('click', () => {
+            const pwdInput = document.getElementById('authPassword');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                togglePwdBtn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+            } else {
+                pwdInput.type = 'password';
+                togglePwdBtn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+            }
+        });
+    }
+
     // Logout button handler
-    const logoutBtn = document.getElementById('logout-btn');
+    const logoutBtn = document.getElementById('menuLogoutBtn') || document.getElementById('pendingLogoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             await window.App.Auth.signOut();
@@ -126,15 +152,6 @@ function setupEventListeners() {
 
 // Show pending approval notice
 function showPendingScreen() {
-    const authScreen = document.getElementById('auth-screen');
-    if (authScreen) {
-        authScreen.innerHTML = `
-            <div style="background-color: #0b0f19; color: #fff; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; text-align: center; padding: 20px;">
-                <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
-                <h2 style="color: #fbbf24; margin-bottom: 10px;">অ্যাকাউন্ট অনুমোদনের অপেক্ষায় আছে</h2>
-                <p style="color: #9ca3af; font-size: 14px; max-width: 400px; margin-bottom: 20px;">আপনার অ্যাকাউন্টটি সফলভাবে তৈরি হয়েছে। অ্যাডমিন কর্তৃক অনুমোদিত হওয়ার পর আপনি অ্যাপে প্রবেশ করতে পারবেন।</p>
-                <button onclick="window.App.Auth.signOut().then(() => window.location.reload())" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">লগআউট করুন</button>
-            </div>
-        `;
-    }
+    const pendingScreen = document.getElementById('pendingScreen');
+    if (pendingScreen) pendingScreen.classList.remove('hidden');
 }
