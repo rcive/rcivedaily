@@ -70,9 +70,34 @@ async function checkUserSession() {
     }, 800);
 }
 
-// Setup global event listeners for UI forms
+
+
+    // Password visibility toggle
+    const togglePwdBtn = document.getElementById('authTogglePasswordBtn');
+    if (togglePwdBtn) {
+        togglePwdBtn.addEventListener('click', () => {
+            const pwdInput = document.getElementById('authPassword');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                togglePwdBtn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+            } else {
+                pwdInput.type = 'password';
+                togglePwdBtn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+            }
+        });
+    }
+
+    // Logout button handler
+    const logoutBtn = document.getElementById('menuLogoutBtn') || document.getElementById('pendingLogoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            await window.App.Auth.signOut();
+            window.location.reload();
+        });
+    }
+}// Setup global event listeners for UI forms
 function setupEventListeners() {
-    const authForm = document.getElementById('auth-form');
+    const authForm = document.getElementById('authForm');
     if (authForm) {
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -88,6 +113,7 @@ function setupEventListeners() {
                 return;
             }
 
+            console.log("Submitting auth for:", identifier);
             const result = await window.App.Auth.handleAuthSubmit(identifier, password, isSignUp);
             
             if (result.success) {
