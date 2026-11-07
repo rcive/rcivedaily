@@ -72,10 +72,12 @@ App.Auth = {
     // Handle Login / Signup form submit
     async handleAuthSubmit(identifier, password, isSignUp, fullName = '') {
         try {
+            const cleanIdentifier = identifier.toLowerCase().replace(/[^a-z0-9_]/g, '');
+            
             if (isSignUp) {
-                // Sign Up logic using username mapped to email format or standard email
-                const email = identifier.includes('@') ? identifier : `${identifier.toLowerCase().replace(/[^a-z0-9]/g, '')}@rcivedaily.local`;
-                const username = identifier.includes('@') ? identifier.split('@')[0] : identifier;
+                // Generate a unique email using the username to prevent rate limits on local domain
+                const email = `${cleanIdentifier}@rcivedaily.local`;
+                const username = cleanIdentifier;
 
                 const { data, error } = await this.supabaseClient.auth.signUp({
                     email: email,
@@ -89,10 +91,10 @@ App.Auth = {
                 });
 
                 if (error) throw error;
-                return { success: true, message: 'Account created successfully! Please wait for admin approval.' };
+                return { success: true, message: 'Account created successfully! Please login now.' };
             } else {
-                // Sign In logic
-                const email = identifier.includes('@') ? identifier : `${identifier.toLowerCase().replace(/[^a-z0-9]/g, '')}@rcivedaily.local`;
+                // Sign In logic: Try searching or logging in with the mapped local email
+                const email = `${cleanIdentifier}@rcivedaily.local`;
 
                 const { data, error } = await this.supabaseClient.auth.signInWithPassword({
                     email: email,
